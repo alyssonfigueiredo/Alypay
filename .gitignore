@@ -1,0 +1,13 @@
+node_modules/
+.env
+logs/*.log
+logs/previews/*.json
+logs/approvals/*.json
+logs/sent/*.json
+!logs/previews/.gitkeep
+!logs/approvals/.gitkeep
+!logs/sent/.gitkeep
+*.pem
+*.key
+npm-debug.log*
+.DS_Store
