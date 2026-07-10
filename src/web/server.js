@@ -1,4 +1,5 @@
 const path = require('path');
+const crypto = require('crypto');
 const express = require('express');
 const config = require('../config/env');
 const { logger } = require('../utils/logger');
@@ -10,7 +11,40 @@ const {
   deleteDebtor,
 } = require('../services/sheetsService');
 
+if (!config.web.username || !config.web.password) {
+  throw new Error(
+    'PANEL_USERNAME e PANEL_PASSWORD são obrigatórios para rodar o painel. Defina-os no .env.'
+  );
+}
+
 const app = express();
+
+function timingSafeStringEqual(a, b) {
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+function basicAuth(req, res, next) {
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+
+  if (scheme === 'Basic' && encoded) {
+    const [user, pass] = Buffer.from(encoded, 'base64').toString('utf8').split(':');
+    if (
+      timingSafeStringEqual(user || '', config.web.username) &&
+      timingSafeStringEqual(pass || '', config.web.password)
+    ) {
+      return next();
+    }
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="Alypay"');
+  res.status(401).send('Autenticação necessária.');
+}
+
+app.use(basicAuth);
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 

@@ -55,5 +55,7 @@ module.exports = {
   },
   web: {
     port: Number(process.env.PANEL_PORT || 3000),
+    username: process.env.PANEL_USERNAME || '',
+    password: process.env.PANEL_PASSWORD || '',
   },
 };
