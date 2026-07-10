@@ -101,7 +101,9 @@ app.delete('/api/debtors/:rowNumber', async (req, res) => {
   }
 });
 
-const port = config.web.port;
+// Plataformas como Render/Heroku injetam a porta via env var PORT e
+// esperam que o app escute exatamente nela — tem prioridade sobre PANEL_PORT.
+const port = process.env.PORT || config.web.port;
 app.listen(port, () => {
   logger.info('Painel web iniciado', { port });
   console.log(`\nPainel de cobrança disponível em: http://localhost:${port}\n`);
