@@ -152,6 +152,23 @@ digitar `CONFIRMAR`, e só então dispara as mensagens — respeitando o
 intervalo configurado em `WHATSAPP_SEND_DELAY_MS` entre cada envio. Se
 rodado de novo no mesmo dia, não reenvia quem já recebeu com sucesso.
 
+### Painel web (cadastrar/editar/excluir sem mexer na planilha)
+
+```bash
+npm run panel
+```
+
+Sobe um painel local em `http://localhost:3000` (porta configurável via
+`PANEL_PORT`) com CRUD completo de devedores — cadastrar, editar, marcar
+como pago/pendente e excluir — sem precisar abrir o Google Sheets. Ele lê e
+escreve na mesma planilha usada pelo cron, então tudo fica sincronizado
+automaticamente.
+
+**Importante**: como o painel também *escreve* na planilha (não só lê), a
+Service Account precisa ter permissão de **Editor** nela (não só Leitor).
+Se só configurou como Leitor seguindo os passos da seção anterior, volte lá
+e troque a permissão do e-mail da Service Account para Editor.
+
 ## Logs
 
 | Arquivo | Conteúdo |
@@ -188,6 +205,9 @@ src/
   scripts/
     preview.js               # gera preview manualmente (npm run preview)
     approve.js                # revisão + confirmação + disparo (npm run approve)
+  web/
+    server.js                 # painel CRUD local (npm run panel)
+    public/index.html          # frontend do painel (sem framework)
   utils/
     phoneNormalizer.js        # normalização de telefone BR para E.164
     dateUtils.js               # parse de data / verificação de vencido

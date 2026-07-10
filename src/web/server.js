@@ -2,7 +2,13 @@ const path = require('path');
 const express = require('express');
 const config = require('../config/env');
 const { logger } = require('../utils/logger');
-const { getAllDebtors, appendDebtor, updateDebtorStatus } = require('../services/sheetsService');
+const {
+  getAllDebtors,
+  appendDebtor,
+  updateDebtor,
+  updateDebtorStatus,
+  deleteDebtor,
+} = require('../services/sheetsService');
 
 const app = express();
 app.use(express.json());
@@ -35,6 +41,26 @@ app.patch('/api/debtors/:rowNumber', async (req, res) => {
       return res.status(400).json({ error: 'Status deve ser "pago" ou "pendente".' });
     }
     await updateDebtorStatus(rowNumber, status);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.put('/api/debtors/:rowNumber', async (req, res) => {
+  try {
+    const rowNumber = Number(req.params.rowNumber);
+    await updateDebtor(rowNumber, req.body);
+    res.json({ ok: true });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+app.delete('/api/debtors/:rowNumber', async (req, res) => {
+  try {
+    const rowNumber = Number(req.params.rowNumber);
+    await deleteDebtor(rowNumber);
     res.json({ ok: true });
   } catch (error) {
     res.status(400).json({ error: error.message });

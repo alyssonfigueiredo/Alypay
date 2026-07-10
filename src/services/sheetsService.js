@@ -186,11 +186,10 @@ async function getAllDebtors() {
 }
 
 /**
- * Adiciona um novo devedor ao final da planilha. Normaliza telefone e data
- * antes de gravar para garantir que o cron consiga processar a linha depois.
- * Lança erro se telefone ou data forem inválidos.
+ * Valida e normaliza os campos de um devedor vindos do painel. Lança erro
+ * com mensagem amigável se algo for inválido.
  */
-async function appendDebtor({ name, phone, amount, dueDate }) {
+function validateDebtorInput({ name, phone, amount, dueDate }) {
   const normalizedPhone = normalizeBrazilianPhone(phone);
   if (!normalizedPhone) {
     throw new Error(`Telefone inválido: ${phone}`);
@@ -211,6 +210,22 @@ async function appendDebtor({ name, phone, amount, dueDate }) {
     throw new Error('Nome é obrigatório.');
   }
 
+  return {
+    name: trimmedName,
+    phone: normalizedPhone,
+    amount: parsedAmount,
+    dueDate: formatDate(parsedDueDate),
+  };
+}
+
+/**
+ * Adiciona um novo devedor ao final da planilha. Normaliza telefone e data
+ * antes de gravar para garantir que o cron consiga processar a linha depois.
+ * Lança erro se telefone ou data forem inválidos.
+ */
+async function appendDebtor(input) {
+  const debtor = validateDebtorInput(input);
+
   const auth = getAuthClient();
   const sheets = google.sheets({ version: 'v4', auth });
 
@@ -219,11 +234,76 @@ async function appendDebtor({ name, phone, amount, dueDate }) {
     range: `${getSheetName()}!A:E`,
     valueInputOption: 'USER_ENTERED',
     requestBody: {
-      values: [[trimmedName, normalizedPhone, parsedAmount, formatDate(parsedDueDate), 'pendente']],
+      values: [[debtor.name, debtor.phone, debtor.amount, debtor.dueDate, 'pendente']],
     },
   });
 
-  logger.info('Devedor adicionado via painel', { name: trimmedName, phone: normalizedPhone });
+  logger.info('Devedor adicionado via painel', { name: debtor.name, phone: debtor.phone });
+}
+
+/**
+ * Sobrescreve todos os campos de uma linha existente (edição completa).
+ */
+async function updateDebtor(rowNumber, input) {
+  const debtor = validateDebtorInput(input);
+  const status = ['pago', 'pendente'].includes(input.status) ? input.status : 'pendente';
+
+  const auth = getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    range: `${getSheetName()}!A${rowNumber}:E${rowNumber}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[debtor.name, debtor.phone, debtor.amount, debtor.dueDate, status]],
+    },
+  });
+
+  logger.info('Devedor editado via painel', { rowNumber, name: debtor.name });
+}
+
+async function getSheetGridId(sheets) {
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    fields: 'sheets.properties',
+  });
+  const sheetName = getSheetName();
+  const sheet = response.data.sheets.find((s) => s.properties.title === sheetName);
+  if (!sheet) {
+    throw new Error(`Aba "${sheetName}" não encontrada na planilha.`);
+  }
+  return sheet.properties.sheetId;
+}
+
+/**
+ * Remove uma linha da planilha (exclui a linha inteira, deslocando as
+ * linhas abaixo para cima).
+ */
+async function deleteDebtor(rowNumber) {
+  const auth = getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth });
+  const sheetId = await getSheetGridId(sheets);
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          deleteDimension: {
+            range: {
+              sheetId,
+              dimension: 'ROWS',
+              startIndex: rowNumber - 1,
+              endIndex: rowNumber,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  logger.info('Devedor removido via painel', { rowNumber });
 }
 
 /**
@@ -250,4 +330,11 @@ async function updateDebtorStatus(rowNumber, status) {
   logger.info('Status de devedor atualizado via painel', { rowNumber, status });
 }
 
-module.exports = { getOverdueDebtors, getAllDebtors, appendDebtor, updateDebtorStatus };
+module.exports = {
+  getOverdueDebtors,
+  getAllDebtors,
+  appendDebtor,
+  updateDebtor,
+  updateDebtorStatus,
+  deleteDebtor,
+};
