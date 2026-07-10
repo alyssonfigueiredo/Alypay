@@ -10,12 +10,14 @@
   "scripts": {
     "start": "node src/index.js",
     "preview": "node src/scripts/preview.js",
-    "approve": "node src/scripts/approve.js"
+    "approve": "node src/scripts/approve.js",
+    "panel": "node src/web/server.js"
   },
   "dependencies": {
     "axios": "^1.7.9",
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.7",
+    "express": "^4.22.2",
     "google-auth-library": "^9.15.0",
     "googleapis": "^144.0.0",
     "node-cron": "^3.0.3",

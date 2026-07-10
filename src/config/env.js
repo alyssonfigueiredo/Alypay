@@ -53,4 +53,7 @@ module.exports = {
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  web: {
+    port: Number(process.env.PANEL_PORT || 3000),
+  },
 };

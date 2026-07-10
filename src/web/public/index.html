@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alypay — Cobrança</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f5f6f8;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --border: #e2e4e9;
+    --primary: #2563eb;
+    --primary-text: #ffffff;
+    --danger: #dc2626;
+    --ok: #16a34a;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111318;
+      --card: #1a1d24;
+      --text: #f2f2f2;
+      --muted: #9ca3af;
+      --border: #2a2e37;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 24px 16px 64px;
+  }
+  .wrap { max-width: 780px; margin: 0 auto; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  p.subtitle { color: var(--muted); margin-top: 0; font-size: 0.9rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1rem; margin: 0 0 14px; }
+  form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  form .full { grid-column: 1 / -1; }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input {
+    width: 100%;
+    padding: 9px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 8px;
+    padding: 9px 16px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  button.primary { background: var(--primary); color: var(--primary-text); }
+  button.small { padding: 5px 10px; font-size: 0.8rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+  th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .badge.pendente { background: rgba(220, 38, 38, 0.12); color: var(--danger); }
+  .badge.pago { background: rgba(22, 163, 74, 0.12); color: var(--ok); }
+  .badge.vencida { outline: 1px solid var(--danger); }
+  .empty { color: var(--muted); font-size: 0.85rem; padding: 12px 0; }
+  .error { color: var(--danger); font-size: 0.85rem; margin-top: 8px; }
+  .toggle-btn { background: var(--border); color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Alypay — Cobrança</h1>
+  <p class="subtitle">Gerencie quem deve, adicione novas dívidas e marque como pago. O envio automático via WhatsApp roda separado (cron).</p>
+
+  <div class="card">
+    <h2>Adicionar dívida</h2>
+    <form id="add-form">
+      <div>
+        <label for="name">Nome</label>
+        <input id="name" name="name" required />
+      </div>
+      <div>
+        <label for="phone">Telefone</label>
+        <input id="phone" name="phone" placeholder="41987925559" required />
+      </div>
+      <div>
+        <label for="amount">Valor devido</label>
+        <input id="amount" name="amount" placeholder="150,00" required />
+      </div>
+      <div>
+        <label for="dueDate">Vencimento</label>
+        <input id="dueDate" name="dueDate" placeholder="DD/MM/AAAA" required />
+      </div>
+      <div class="full">
+        <button type="submit" class="primary">Adicionar</button>
+      </div>
+    </form>
+    <div id="add-error" class="error" hidden></div>
+  </div>
+
+  <div class="card">
+    <h2>Devedores</h2>
+    <div id="table-wrap"></div>
+  </div>
+</div>
+
+<script>
+async function fetchDebtors() {
+  const res = await fetch('/api/debtors');
+  if (!res.ok) throw new Error('Falha ao carregar devedores');
+  return res.json();
+}
+
+function isOverdue(dueDateStr) {
+  const [d, m, y] = (dueDateStr || '').split('/').map(Number);
+  if (!d || !m || !y) return false;
+  const due = new Date(y, m - 1, d);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return due < today;
+}
+
+function render(debtors) {
+  const wrap = document.getElementById('table-wrap');
+  if (!debtors.length) {
+    wrap.innerHTML = '<p class="empty">Nenhum devedor cadastrado ainda.</p>';
+    return;
+  }
+
+  const rows = debtors.map((d) => {
+    const status = (d.status || '').trim().toLowerCase();
+    const overdue = status === 'pendente' && isOverdue(d.dueDate);
+    const badgeClass = 'badge ' + (status === 'pago' ? 'pago' : 'pendente') + (overdue ? ' vencida' : '');
+    const nextStatus = status === 'pago' ? 'pendente' : 'pago';
+    const toggleLabel = status === 'pago' ? 'Marcar pendente' : 'Marcar pago';
+    return `
+      <tr>
+        <td>${escapeHtml(d.name)}</td>
+        <td>${escapeHtml(d.phone)}</td>
+        <td>${escapeHtml(String(d.amount))}</td>
+        <td>${escapeHtml(d.dueDate)}</td>
+        <td><span class="${badgeClass}">${escapeHtml(d.status || '—')}</span></td>
+        <td><button class="small toggle-btn" data-row="${d.rowNumber}" data-status="${nextStatus}">${toggleLabel}</button></td>
+      </tr>
+    `;
+  }).join('');
+
+  wrap.innerHTML = `
+    <table>
+      <thead>
+        <tr><th>Nome</th><th>Telefone</th><th>Valor</th><th>Vencimento</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+
+  wrap.querySelectorAll('button[data-row]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      try {
+        await fetch(`/api/debtors/${btn.dataset.row}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: btn.dataset.status }),
+        });
+        await refresh();
+      } catch (err) {
+        btn.disabled = false;
+        alert('Erro ao atualizar status: ' + err.message);
+      }
+    });
+  });
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+async function refresh() {
+  const debtors = await fetchDebtors();
+  render(debtors);
+}
+
+document.getElementById('add-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errorEl = document.getElementById('add-error');
+  errorEl.hidden = true;
+  const form = e.target;
+  const payload = {
+    name: form.name.value,
+    phone: form.phone.value,
+    amount: form.amount.value,
+    dueDate: form.dueDate.value,
+  };
+  try {
+    const res = await fetch('/api/debtors', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Erro desconhecido');
+    form.reset();
+    await refresh();
+  } catch (err) {
+    errorEl.textContent = err.message;
+    errorEl.hidden = false;
+  }
+});
+
+refresh().catch((err) => {
+  document.getElementById('table-wrap').innerHTML = `<p class="error">${escapeHtml(err.message)}</p>`;
+});
+</script>
+</body>
+</html>

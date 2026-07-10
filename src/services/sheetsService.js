@@ -6,7 +6,7 @@ const { normalizeBrazilianPhone } = require('../utils/phoneNormalizer');
 const { parseDueDate, isOverdue, formatDate } = require('../utils/dateUtils');
 const { parseMoney } = require('../utils/money');
 
-const SCOPES = ['https://www.googleapis.com/auth/spreadsheets.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/spreadsheets'];
 
 function getAuthClient() {
   return new JWT({
@@ -152,4 +152,102 @@ async function getOverdueDebtors() {
   return debtors;
 }
 
-module.exports = { getOverdueDebtors };
+function getSheetName() {
+  return config.googleSheets.range.split('!')[0];
+}
+
+function columnIndexToLetter(index) {
+  return String.fromCharCode(65 + index);
+}
+
+async function getHeaderColumnMap(sheets) {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    range: `${getSheetName()}!1:1`,
+  });
+  return buildColumnMap(response.data.values?.[0] || []);
+}
+
+/**
+ * Retorna todos os devedores da planilha, sem filtro de status/vencimento,
+ * com os valores exatamente como estão na planilha (sem normalização) —
+ * usado pelo painel de gestão para listar/editar.
+ */
+async function getAllDebtors() {
+  const rows = await readSheetRows();
+  return rows.map((row) => ({
+    rowNumber: row.rowNumber,
+    name: row.rawName || '',
+    phone: row.rawPhone || '',
+    amount: row.rawAmount || '',
+    dueDate: row.rawDueDate || '',
+    status: row.rawStatus || '',
+  }));
+}
+
+/**
+ * Adiciona um novo devedor ao final da planilha. Normaliza telefone e data
+ * antes de gravar para garantir que o cron consiga processar a linha depois.
+ * Lança erro se telefone ou data forem inválidos.
+ */
+async function appendDebtor({ name, phone, amount, dueDate }) {
+  const normalizedPhone = normalizeBrazilianPhone(phone);
+  if (!normalizedPhone) {
+    throw new Error(`Telefone inválido: ${phone}`);
+  }
+
+  const parsedDueDate = parseDueDate(dueDate);
+  if (!parsedDueDate) {
+    throw new Error(`Data de vencimento inválida: ${dueDate}`);
+  }
+
+  const parsedAmount = parseMoney(amount);
+  if (parsedAmount === null) {
+    throw new Error(`Valor devido inválido: ${amount}`);
+  }
+
+  const trimmedName = String(name || '').trim();
+  if (!trimmedName) {
+    throw new Error('Nome é obrigatório.');
+  }
+
+  const auth = getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    range: `${getSheetName()}!A:E`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: {
+      values: [[trimmedName, normalizedPhone, parsedAmount, formatDate(parsedDueDate), 'pendente']],
+    },
+  });
+
+  logger.info('Devedor adicionado via painel', { name: trimmedName, phone: normalizedPhone });
+}
+
+/**
+ * Atualiza o status (pago/pendente) de uma linha específica da planilha.
+ */
+async function updateDebtorStatus(rowNumber, status) {
+  const auth = getAuthClient();
+  const sheets = google.sheets({ version: 'v4', auth });
+  const columnMap = await getHeaderColumnMap(sheets);
+
+  if (columnMap.status === undefined) {
+    throw new Error('Coluna "status" não encontrada na planilha.');
+  }
+
+  const statusColumn = columnIndexToLetter(columnMap.status);
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: config.googleSheets.spreadsheetId,
+    range: `${getSheetName()}!${statusColumn}${rowNumber}`,
+    valueInputOption: 'USER_ENTERED',
+    requestBody: { values: [[status]] },
+  });
+
+  logger.info('Status de devedor atualizado via painel', { rowNumber, status });
+}
+
+module.exports = { getOverdueDebtors, getAllDebtors, appendDebtor, updateDebtorStatus };
