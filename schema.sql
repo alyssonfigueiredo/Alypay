@@ -1,4 +1,4 @@
--- Alypay — Fatura da Vergonha™
+-- Alypay — Boletim do Calote
 -- Schema do Supabase (Postgres). Rode isso inteiro no SQL Editor do
 -- seu projeto Supabase (Dashboard → SQL Editor → New query → colar → Run).
 
