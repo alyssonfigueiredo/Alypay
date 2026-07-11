@@ -10,9 +10,9 @@ export async function onRequestGet({ request, env }) {
     sb(env, 'primos?select=id,nome,token_acesso,created_at&order=created_at.asc'),
     sb(
       env,
-      'compras?select=id,primo_id,descricao,total,parcelas,inicio_mes,created_at&order=created_at.desc'
+      'compras?select=id,primo_id,descricao,total,parcelas,inicio_mes,tipo,prazo,status,created_at&order=created_at.desc'
     ),
-    sb(env, 'pagamentos?select=id,primo_id,valor,data,nota,created_at&order=data.desc'),
+    sb(env, 'pagamentos?select=id,primo_id,valor,data,nota,status,created_at&order=data.desc'),
   ]);
 
   return json({ primos, compras, pagamentos });

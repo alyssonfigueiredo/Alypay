@@ -1,6 +1,5 @@
 import { sb, json } from '../_shared/supabase.js';
-
-const TOKEN_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { resolvePrimoByToken } from '../_shared/primo.js';
 
 // GET /api/primo?t=<token_acesso>
 // Retorna somente os dados do primo dono desse token. Token inválido ou
@@ -10,12 +9,7 @@ export async function onRequestGet({ request, env }) {
   const url = new URL(request.url);
   const token = url.searchParams.get('t') || '';
 
-  if (!TOKEN_RE.test(token)) {
-    return json({ error: 'Link inválido.' }, 404);
-  }
-
-  const primos = await sb(env, `primos?token_acesso=eq.${token}&select=id,nome`);
-  const primo = primos && primos[0];
+  const primo = await resolvePrimoByToken(env, token);
   if (!primo) {
     return json({ error: 'Link inválido.' }, 404);
   }
@@ -23,9 +17,9 @@ export async function onRequestGet({ request, env }) {
   const [compras, pagamentos] = await Promise.all([
     sb(
       env,
-      `compras?primo_id=eq.${primo.id}&select=id,descricao,total,parcelas,inicio_mes&order=created_at.desc`
+      `compras?primo_id=eq.${primo.id}&select=id,descricao,total,parcelas,inicio_mes,tipo,prazo,status&order=created_at.desc`
     ),
-    sb(env, `pagamentos?primo_id=eq.${primo.id}&select=id,valor,data,nota&order=data.desc`),
+    sb(env, `pagamentos?primo_id=eq.${primo.id}&select=id,valor,data,nota,status&order=data.desc`),
   ]);
 
   return json({ primo, compras, pagamentos });

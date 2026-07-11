@@ -17,9 +17,17 @@ create table if not exists compras (
   descricao text not null,
   -- Se parcelada: valor total da compra, dividido por "parcelas".
   -- Se recorrente (parcelas is null): valor cobrado todo mês, sem fim.
+  -- Se emprestimo: dinheiro emprestado direto (não é compra de cartão),
+  -- sempre 1 parcela só; "prazo" é opcional e puramente informativo.
   total numeric(10,2) not null check (total > 0),
   parcelas int check (parcelas is null or parcelas between 1 and 24),
   inicio_mes text not null check (inicio_mes ~ '^\d{4}-\d{2}$'),
+  tipo text not null default 'compra' check (tipo in ('compra', 'emprestimo')),
+  prazo date,
+  -- Lançamentos criados pelo admin nascem aprovados; lançamentos que um
+  -- primo envia pelo próprio link nascem pendentes e só entram nos
+  -- cálculos de saldo depois que o admin aprova.
+  status text not null default 'aprovado' check (status in ('pendente', 'aprovado', 'rejeitado')),
   created_at timestamptz not null default now()
 );
 
@@ -29,6 +37,7 @@ create table if not exists pagamentos (
   valor numeric(10,2) not null check (valor > 0),
   data date not null default current_date,
   nota text,
+  status text not null default 'aprovado' check (status in ('pendente', 'aprovado', 'rejeitado')),
   created_at timestamptz not null default now()
 );
 

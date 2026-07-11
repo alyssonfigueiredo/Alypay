@@ -99,6 +99,10 @@
     flex: 1; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.18);
     color: #fff; border-radius: 10px; padding: 8px 6px; font-size: 0.74rem; cursor: pointer;
   }
+  .cc-pending {
+    display: inline-block; margin-top: 10px; font-size: 0.74rem;
+    background: rgba(0,0,0,0.32); border-radius: 999px; padding: 5px 11px;
+  }
 
   .cc-breakdown {
     margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.22);
@@ -210,6 +214,7 @@ const state = {
   adminPassword: sessionStorage.getItem('alypay_admin_pw') || '',
   loginError: '',
   data: null,        // admin: {primos, compras, pagamentos} | primo: {primo, compras, pagamentos}
+  token: '',         // token do primo logado (rota /?t=...), usado pra ele lançar coisas
   activeTab: 'fatura',
   mes: mesAtual(),
   expandidos: new Set(),
@@ -280,6 +285,15 @@ function totalAcumuladoAte(compra, mesRef) {
 
 function somaPagamentos(pagamentos) { return round2(pagamentos.reduce((s, p) => s + Number(p.valor), 0)); }
 
+// Só lançamentos aprovados contam pro saldo. Itens sem "status" (backups
+// antigos, de antes dessa coluna existir) são tratados como aprovados.
+function aprovados(lista) { return lista.filter((x) => x.status === 'aprovado' || x.status === undefined); }
+
+function formatData(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
 // Soma das compras pra fins de "saldo total": parceladas entram pelo
 // total cheio (é um compromisso fechado); recorrentes entram só pelo
 // quanto já venceu até hoje (não têm um "total futuro" definido).
@@ -318,6 +332,7 @@ function statusPrimo(saldo) {
   return { emoji: '🚨', label: 'Caloteiro Sênior' };
 }
 function parcelaBadge(l) {
+  if (l.compra.tipo === 'emprestimo') return 'empréstimo';
   return l.parcela.recorrente ? 'eterno' : `${l.parcela.index + 1}/${l.compra.parcelas}`;
 }
 function esc(s) {
@@ -360,6 +375,16 @@ const API = {
     const res = await fetch(`/api/admin/compra/${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': password } });
     if (!res.ok) throw new Error('Erro ao excluir compra.');
   },
+  async patchCompraStatus(password, id, status) {
+    const res = await fetch(`/api/admin/compra/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar compra.');
+    return body;
+  },
   async createPagamento(password, payload) {
     const res = await fetch('/api/admin/pagamento', {
       method: 'POST',
@@ -373,6 +398,36 @@ const API = {
   async deletePagamento(password, id) {
     const res = await fetch(`/api/admin/pagamento/${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': password } });
     if (!res.ok) throw new Error('Erro ao excluir pagamento.');
+  },
+  async patchPagamentoStatus(password, id, status) {
+    const res = await fetch(`/api/admin/pagamento/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar pagamento.');
+    return body;
+  },
+  async createCompraPrimo(token, payload) {
+    const res = await fetch('/api/primo/compra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...payload }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao enviar compra.');
+    return body;
+  },
+  async createPagamentoPrimo(token, payload) {
+    const res = await fetch('/api/primo/pagamento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...payload }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao enviar pagamento.');
+    return body;
   },
   async updatePrimo(password, id, patch) {
     const res = await fetch(`/api/admin/primo/${id}`, {
@@ -415,6 +470,7 @@ async function boot() {
       state.route = 'admin-login';
     }
   } else if (token) {
+    state.token = token;
     try {
       state.data = await API.primo(token);
       state.route = 'primo';
@@ -478,14 +534,32 @@ function renderAdminLogin() {
     </div>`;
 }
 
+function pendCountTotal() {
+  const { compras, pagamentos } = state.data;
+  return compras.filter((c) => c.status === 'pendente').length + pagamentos.filter((p) => p.status === 'pendente').length;
+}
+function pendCountDe(primoId) {
+  const { compras, pagamentos } = state.data;
+  return comprasDe(compras, primoId).filter((c) => c.status === 'pendente').length
+    + pagamentosDe(pagamentos, primoId).filter((p) => p.status === 'pendente').length;
+}
+
 function renderAdmin() {
   const { primos, compras, pagamentos } = state.data;
-  const cards = primos.map((p) => renderCard(p, comprasDe(compras, p.id), pagamentosDe(pagamentos, p.id), true)).join('');
+  const cards = primos.map((p) => renderCard(
+    p,
+    aprovados(comprasDe(compras, p.id)),
+    aprovados(pagamentosDe(pagamentos, p.id)),
+    true,
+    pendCountDe(p.id)
+  )).join('');
 
+  const pend = pendCountTotal();
   const tabs = [
     ['fatura', 'Fatura do mês'],
     ['compra', 'Nova compra'],
     ['pagamento', 'Pagamento'],
+    ['aprovacoes', pend > 0 ? `Aprovações (${pend})` : 'Aprovações'],
     ['historico', 'Histórico'],
   ].map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
 
@@ -493,6 +567,7 @@ function renderAdmin() {
   if (state.activeTab === 'fatura') tabBody = renderFaturaAdmin();
   else if (state.activeTab === 'compra') tabBody = renderFormCompra();
   else if (state.activeTab === 'pagamento') tabBody = renderFormPagamento();
+  else if (state.activeTab === 'aprovacoes') tabBody = renderAprovacoesAdmin();
   else if (state.activeTab === 'historico') tabBody = renderHistoricoAdmin();
 
   return `
@@ -513,7 +588,7 @@ function renderAdmin() {
 function comprasDe(compras, primoId) { return compras.filter((c) => c.primo_id === primoId); }
 function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.primo_id === primoId); }
 
-function renderCard(primo, compras, pagamentos, isAdmin) {
+function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
   const saldo = saldoTotal(compras, pagamentos);
   const vencido = saldoVencido(compras, pagamentos, mesAtual());
   const pago = somaPagamentos(pagamentos);
@@ -529,11 +604,15 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
         ? `<div class="cc-breakdown-empty">Nenhuma compra lançada ainda. Aproveite enquanto dura. 😌</div>`
         : compras.map((c) => `
             <div class="cc-breakdown-item">
-              <span class="desc">${esc(c.descricao)} · ${isRecorrente(c) ? 'mensal' : c.parcelas + 'x'}</span>
+              <span class="desc">${esc(c.descricao)} · ${c.tipo === 'emprestimo' ? 'empréstimo' : (isRecorrente(c) ? 'mensal' : c.parcelas + 'x')}</span>
               <span class="val">${formatBRL(isRecorrente(c) ? totalAcumuladoAte(c, mesAtual()) : c.total)}</span>
             </div>`).join('')
       }
     </div>` : '';
+
+  const pendente = pendCount > 0
+    ? `<div class="cc-pending"${isAdmin ? ' data-action="ir-aprovacoes"' : ''}>⏳ ${pendCount} aguardando aprovação</div>`
+    : '';
 
   return `
     <div class="cc">
@@ -555,6 +634,7 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
       <div class="cc-bar-track"><div class="cc-bar-fill" style="width:${pct}%"></div></div>
       <div class="cc-pct">${pct}% quitado</div>
       ${breakdown}
+      ${pendente}
       ${isAdmin ? `
         <div class="cc-actions">
           <button data-action="copy-link" data-id="${primo.id}">🔗 Copiar link</button>
@@ -578,7 +658,7 @@ function renderMonthNav() {
 function renderFaturaAdmin() {
   const { primos, compras } = state.data;
   const grupos = primos.map((primo) => {
-    const linhas = faturaDoMes(comprasDe(compras, primo.id), state.mes);
+    const linhas = faturaDoMes(aprovados(comprasDe(compras, primo.id)), state.mes);
     const subtotal = round2(linhas.reduce((s, l) => s + l.parcela.valor, 0));
     return `
       <div class="line-group">
@@ -612,12 +692,16 @@ function renderFormCompra() {
           </select>
         </div>
         <div class="field">
-          <label for="c-desc">Descrição</label>
-          <input id="c-desc" type="text" placeholder="Ex: iPhone, tênis, rodada no bar" required />
+          <label for="c-tipo">Tipo</label>
+          <select id="c-tipo">
+            <option value="compra">🛒 Compra parcelada</option>
+            <option value="recorrente">🔁 Cobrança recorrente (assinatura, sem fim)</option>
+            <option value="emprestimo">💵 Empréstimo em dinheiro</option>
+          </select>
         </div>
-        <div class="field" style="display:flex;align-items:center;gap:8px">
-          <input id="c-recorrente" type="checkbox" style="width:auto" />
-          <label for="c-recorrente" style="margin:0">Cobrança recorrente (sem fim, tipo assinatura)</label>
+        <div class="field">
+          <label for="c-desc">Descrição</label>
+          <input id="c-desc" type="text" placeholder="Ex: iPhone, tênis, adiantamento" required />
         </div>
         <div class="field">
           <label for="c-total" id="c-total-label">Valor total (R$)</label>
@@ -631,11 +715,56 @@ function renderFormCompra() {
           <label for="c-mes" id="c-mes-label">Mês da 1ª parcela</label>
           <input id="c-mes" type="month" value="${mesAtual()}" required />
         </div>
+        <div class="field" id="c-prazo-field" hidden>
+          <label for="c-prazo">Prazo pra devolver</label>
+          <input id="c-prazo" type="date" disabled />
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <input id="c-prazo-indefinido" type="checkbox" style="width:auto" checked />
+            <label for="c-prazo-indefinido" style="margin:0">Prazo a definir</label>
+          </div>
+        </div>
         <div class="preview-line" id="c-preview">Preencha valor e parcelas pra ver o preview.</div>
         <div class="form-error" id="c-error" hidden></div>
-        <button class="btn btn-primary" type="submit">Lançar compra</button>
+        <button class="btn btn-primary" type="submit">Lançar</button>
       </form>
     </div>`;
+}
+
+function renderAprovacoesAdmin() {
+  const { primos, compras, pagamentos } = state.data;
+  const pendCompras = compras.filter((c) => c.status === 'pendente');
+  const pendPagamentos = pagamentos.filter((p) => p.status === 'pendente');
+  const nomeDe = (id) => (primos.find((p) => p.id === id) || {}).nome || '?';
+
+  if (pendCompras.length === 0 && pendPagamentos.length === 0) {
+    return `<div class="card"><div class="empty"><div class="big">✅</div>Nada esperando aprovação. Segue o jogo.</div></div>`;
+  }
+
+  const itensCompra = pendCompras.map((c) => `
+    <div class="line-item">
+      <div class="info">
+        <div class="desc">🛍️ ${esc(c.descricao)} <span class="badge-parc">${esc(nomeDe(c.primo_id))}</span></div>
+        <div class="meta">${c.parcelas ? `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}` : `${formatBRL(c.total)}/mês`} · desde ${formatMes(c.inicio_mes)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="del" style="color:var(--ok)" data-action="aprovar-compra" data-id="${c.id}">✅ aprovar</button>
+        <button class="del" data-action="recusar-compra" data-id="${c.id}">❌ recusar</button>
+      </div>
+    </div>`).join('');
+
+  const itensPagamento = pendPagamentos.map((p) => `
+    <div class="line-item">
+      <div class="info">
+        <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} <span class="badge-parc">${esc(nomeDe(p.primo_id))}</span></div>
+        <div class="meta">${p.data} · ${formatBRL(p.valor)}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="del" style="color:var(--ok)" data-action="aprovar-pagamento" data-id="${p.id}">✅ aprovar</button>
+        <button class="del" data-action="recusar-pagamento" data-id="${p.id}">❌ recusar</button>
+      </div>
+    </div>`).join('');
+
+  return `<div class="card"><h3>Aguardando aprovação</h3>${itensCompra}${itensPagamento}</div>`;
 }
 
 function renderFormPagamento() {
@@ -664,6 +793,50 @@ function renderFormPagamento() {
     </div>`;
 }
 
+function renderAdicionarPrimo() {
+  return `
+    <div class="card">
+      <h3>Nova compra</h3>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Vai pro Alysson aprovar antes de entrar na conta.</div>
+      <form id="primo-compra-form">
+        <div class="field">
+          <label for="pc-desc">Descrição</label>
+          <input id="pc-desc" type="text" placeholder="Ex: tênis, rodada no bar" required />
+        </div>
+        <div class="field">
+          <label for="pc-total">Valor total (R$)</label>
+          <input id="pc-total" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field">
+          <label for="pc-parcelas">Número de parcelas</label>
+          <input id="pc-parcelas" type="number" min="1" max="24" value="1" required />
+        </div>
+        <div class="field">
+          <label for="pc-mes">Mês da 1ª parcela</label>
+          <input id="pc-mes" type="month" value="${mesAtual()}" required />
+        </div>
+        <div class="form-error" id="pc-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Enviar pra aprovação</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Registrar pagamento</h3>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Também entra só depois de aprovado.</div>
+      <form id="primo-pagamento-form">
+        <div class="field">
+          <label for="pp-valor">Valor (R$)</label>
+          <input id="pp-valor" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field">
+          <label for="pp-nota">Nota (opcional)</label>
+          <input id="pp-nota" type="text" placeholder="Ex: Pix de hoje" />
+        </div>
+        <div class="form-error" id="pp-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Enviar pra aprovação</button>
+      </form>
+    </div>`;
+}
+
 function renderHistoricoAdmin() {
   const { primos, compras, pagamentos } = state.data;
   const grupos = primos.map((primo) => renderHistoricoDe(primo, comprasDe(compras, primo.id), pagamentosDe(pagamentos, primo.id), true)).join('');
@@ -676,17 +849,27 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
     ...pagamentos.map((p) => ({ tipo: 'pagamento', data: p.data, item: p })),
   ].sort((a, b) => (a.data < b.data ? 1 : -1));
 
+  const statusBadge = (item) => {
+    if (item.status === 'pendente') return `<span class="badge-parc" style="color:var(--acc-c);border-color:var(--acc-c)">⏳ pendente</span>`;
+    if (item.status === 'rejeitado') return `<span class="badge-parc" style="color:var(--danger);border-color:var(--danger)">❌ recusado</span>`;
+    return '';
+  };
+
   return `
     <div class="card">
       <h3>${esc(primo.nome)}</h3>
       ${itens.length === 0 ? `<div class="empty"><div class="big">🦗</div>Nenhum registro ainda.</div>` : itens.map((it) => {
         if (it.tipo === 'compra') {
           const c = it.item;
+          const isEmprestimo = c.tipo === 'emprestimo';
+          const meta = isEmprestimo
+            ? `Empréstimo · ${c.prazo ? 'prazo ' + formatData(c.prazo) : 'prazo a definir'}`
+            : (isRecorrente(c) ? `${formatBRL(c.total)}/mês (eterno)` : `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}`);
           return `
             <div class="line-item">
               <div class="info">
-                <div class="desc">🛍️ ${esc(c.descricao)}</div>
-                <div class="meta">${isRecorrente(c) ? `${formatBRL(c.total)}/mês (eterno)` : `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}`} · desde ${formatMes(c.inicio_mes)}</div>
+                <div class="desc">${isEmprestimo ? '💵' : '🛍️'} ${esc(c.descricao)} ${statusBadge(c)}</div>
+                <div class="meta">${meta} · desde ${formatMes(c.inicio_mes)}</div>
               </div>
               <div class="val">${isRecorrente(c) ? formatBRL(totalAcumuladoAte(c, mesAtual())) + ' até agora' : formatBRL(c.total)}</div>
               ${isAdmin ? `<button class="del" data-action="del-compra" data-id="${c.id}">excluir</button>` : ''}
@@ -696,7 +879,7 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
         return `
           <div class="line-item">
             <div class="info">
-              <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''}</div>
+              <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} ${statusBadge(p)}</div>
               <div class="meta">${p.data}</div>
             </div>
             <div class="val" style="color:var(--ok)">${formatBRL(p.valor)}</div>
@@ -708,15 +891,18 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
 
 function renderPrimoView() {
   const { primo, compras, pagamentos } = state.data;
-  const card = renderCard(primo, compras, pagamentos, false);
-  const tabs = [['fatura', 'Fatura do mês'], ['historico', 'Histórico']]
+  const pendCount = compras.filter((c) => c.status === 'pendente').length + pagamentos.filter((p) => p.status === 'pendente').length;
+  const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false, pendCount);
+  const tabs = [['fatura', 'Fatura do mês'], ['historico', 'Histórico'], ['adicionar', '+ Adicionar']]
     .map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
 
   let body = '';
   if (state.activeTab === 'historico') {
     body = renderHistoricoDe(primo, compras, pagamentos, false);
+  } else if (state.activeTab === 'adicionar') {
+    body = renderAdicionarPrimo();
   } else {
-    const linhas = faturaDoMes(compras, state.mes);
+    const linhas = faturaDoMes(aprovados(compras), state.mes);
     const subtotal = round2(linhas.reduce((s, l) => s + l.parcela.valor, 0));
     body = `
       <div class="card">
@@ -741,7 +927,7 @@ function renderPrimoView() {
     ${card}
     <div class="tabs">${tabs}</div>
     ${body}
-    <div class="footer-note">é só olhar — pra editar, fala com quem manda 😇</div>
+    <div class="footer-note">dá pra adicionar compra/pagamento — o resto só quem manda edita 😇</div>
   `;
 }
 
@@ -804,6 +990,28 @@ async function handleAdminAction(action, target) {
         state.data = await API.adminData(pw);
         showToast('Pagamento excluído.');
       }
+    } else if (action === 'ir-aprovacoes') {
+      state.activeTab = 'aprovacoes'; render();
+    } else if (action === 'aprovar-compra') {
+      await API.patchCompraStatus(pw, target.dataset.id, 'aprovado');
+      state.data = await API.adminData(pw);
+      showToast('Compra aprovada.');
+    } else if (action === 'recusar-compra') {
+      if (confirm('Recusar essa compra?')) {
+        await API.patchCompraStatus(pw, target.dataset.id, 'rejeitado');
+        state.data = await API.adminData(pw);
+        showToast('Compra recusada.');
+      }
+    } else if (action === 'aprovar-pagamento') {
+      await API.patchPagamentoStatus(pw, target.dataset.id, 'aprovado');
+      state.data = await API.adminData(pw);
+      showToast('Pagamento aprovado.');
+    } else if (action === 'recusar-pagamento') {
+      if (confirm('Recusar esse pagamento?')) {
+        await API.patchPagamentoStatus(pw, target.dataset.id, 'rejeitado');
+        state.data = await API.adminData(pw);
+        showToast('Pagamento recusado.');
+      }
     } else if (action === 'logout') {
       sessionStorage.removeItem('alypay_admin_pw');
       location.reload();
@@ -829,9 +1037,9 @@ async function copiarResumoWhatsapp() {
   const { primos, compras } = state.data;
   const linhas = [`*Boletim Anti-Calote — ${formatMes(state.mes)}*`, ''];
   for (const primo of primos) {
-    const faturaLinhas = faturaDoMes(comprasDe(compras, primo.id), state.mes);
+    const faturaLinhas = faturaDoMes(aprovados(comprasDe(compras, primo.id)), state.mes);
     const subtotal = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
-    const saldo = saldoTotal(comprasDe(compras, primo.id), pagamentosDe(state.data.pagamentos, primo.id));
+    const saldo = saldoTotal(aprovados(comprasDe(compras, primo.id)), aprovados(pagamentosDe(state.data.pagamentos, primo.id)));
     linhas.push(`*${primo.nome}* — saldo total ${formatBRL(saldo)}`);
     if (faturaLinhas.length === 0) {
       linhas.push('  nada vencendo esse mês');
@@ -913,17 +1121,23 @@ document.addEventListener('submit', async (e) => {
     const errEl = document.getElementById('c-error');
     errEl.hidden = true;
     try {
-      const recorrente = document.getElementById('c-recorrente').checked;
+      const tipoSel = document.getElementById('c-tipo').value;
+      const recorrente = tipoSel === 'recorrente';
+      const emprestimo = tipoSel === 'emprestimo';
+      const prazoIndef = document.getElementById('c-prazo-indefinido').checked;
+      const prazoVal = document.getElementById('c-prazo').value;
       await API.createCompra(state.adminPassword, {
         primo_id: document.getElementById('c-primo').value,
         descricao: document.getElementById('c-desc').value,
         total: document.getElementById('c-total').value,
-        parcelas: recorrente ? null : Number(document.getElementById('c-parcelas').value),
+        parcelas: (recorrente || emprestimo) ? null : Number(document.getElementById('c-parcelas').value),
         inicio_mes: document.getElementById('c-mes').value,
         recorrente,
+        tipo: emprestimo ? 'emprestimo' : 'compra',
+        prazo: emprestimo && !prazoIndef && prazoVal ? prazoVal : null,
       });
       state.data = await API.adminData(state.adminPassword);
-      showToast('Compra lançada.');
+      showToast('Lançado.');
       render();
     } catch (err) {
       errEl.textContent = err.message;
@@ -946,39 +1160,87 @@ document.addEventListener('submit', async (e) => {
       errEl.textContent = err.message;
       errEl.hidden = false;
     }
+  } else if (e.target.id === 'primo-compra-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('pc-error');
+    errEl.hidden = true;
+    try {
+      await API.createCompraPrimo(state.token, {
+        descricao: document.getElementById('pc-desc').value,
+        total: document.getElementById('pc-total').value,
+        parcelas: Number(document.getElementById('pc-parcelas').value),
+        inicio_mes: document.getElementById('pc-mes').value,
+      });
+      state.data = await API.primo(state.token);
+      state.activeTab = 'historico';
+      showToast('Enviado! Aguardando aprovação.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  } else if (e.target.id === 'primo-pagamento-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('pp-error');
+    errEl.hidden = true;
+    try {
+      await API.createPagamentoPrimo(state.token, {
+        valor: document.getElementById('pp-valor').value,
+        nota: document.getElementById('pp-nota').value,
+      });
+      state.data = await API.primo(state.token);
+      state.activeTab = 'historico';
+      showToast('Enviado! Aguardando aprovação.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
   }
 });
 
 function updateCompraPreview() {
-  const recorrenteEl = document.getElementById('c-recorrente');
-  if (!recorrenteEl) return;
-  const recorrente = recorrenteEl.checked;
+  const tipoEl = document.getElementById('c-tipo');
+  if (!tipoEl) return;
+  const tipo = tipoEl.value; // 'compra' | 'recorrente' | 'emprestimo'
   const total = Number(document.getElementById('c-total').value);
   const parcelas = Number(document.getElementById('c-parcelas').value) || 1;
   const preview = document.getElementById('c-preview');
   const parcelasField = document.getElementById('c-parcelas-field');
+  const prazoField = document.getElementById('c-prazo-field');
+  const prazoInput = document.getElementById('c-prazo');
+  const prazoIndef = document.getElementById('c-prazo-indefinido');
   const totalLabel = document.getElementById('c-total-label');
   const mesLabel = document.getElementById('c-mes-label');
 
-  parcelasField.hidden = recorrente;
-  document.getElementById('c-parcelas').required = !recorrente;
-  totalLabel.textContent = recorrente ? 'Valor mensal (R$)' : 'Valor total (R$)';
-  mesLabel.textContent = recorrente ? 'Mês de início' : 'Mês da 1ª parcela';
+  parcelasField.hidden = tipo !== 'compra';
+  document.getElementById('c-parcelas').required = tipo === 'compra';
+  prazoField.hidden = tipo !== 'emprestimo';
+  prazoInput.disabled = prazoIndef.checked;
+  if (prazoIndef.checked) prazoInput.value = '';
+
+  totalLabel.textContent = tipo === 'recorrente' ? 'Valor mensal (R$)' : tipo === 'emprestimo' ? 'Valor emprestado (R$)' : 'Valor total (R$)';
+  mesLabel.textContent = tipo === 'compra' ? 'Mês da 1ª parcela' : tipo === 'emprestimo' ? 'Mês do empréstimo' : 'Mês de início';
 
   if (total > 0) {
-    preview.textContent = recorrente
-      ? `${formatBRL(total)} por mês, sem data de fim`
-      : `${parcelas}x de ${formatBRL(total / parcelas)} (total ${formatBRL(total)})`;
+    if (tipo === 'recorrente') {
+      preview.textContent = `${formatBRL(total)} por mês, sem data de fim`;
+    } else if (tipo === 'emprestimo') {
+      const prazoTxt = prazoIndef.checked || !prazoInput.value ? 'prazo a definir' : `prazo ${formatData(prazoInput.value)}`;
+      preview.textContent = `Empréstimo de ${formatBRL(total)} — ${prazoTxt}`;
+    } else {
+      preview.textContent = `${parcelas}x de ${formatBRL(total / parcelas)} (total ${formatBRL(total)})`;
+    }
   } else {
     preview.textContent = 'Preencha o valor pra ver o preview.';
   }
 }
 
 document.addEventListener('input', (e) => {
-  if (['c-total', 'c-parcelas', 'c-recorrente'].includes(e.target.id)) updateCompraPreview();
+  if (['c-total', 'c-parcelas', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
 });
 document.addEventListener('change', (e) => {
-  if (e.target.id === 'c-recorrente') updateCompraPreview();
+  if (['c-tipo', 'c-prazo-indefinido', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
 });
 
 boot();
