@@ -111,10 +111,6 @@
     flex: 1; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.18);
     color: #fff; border-radius: 10px; padding: 8px 6px; font-size: 0.74rem; cursor: pointer;
   }
-  .cc-pending {
-    display: inline-block; margin-top: 10px; font-size: 0.74rem;
-    background: rgba(0,0,0,0.32); border-radius: 999px; padding: 5px 11px;
-  }
 
   .cc-breakdown {
     margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.22);
@@ -227,6 +223,7 @@ const state = {
   loginError: '',
   data: null,        // admin: {primos, compras, pagamentos} | primo: {primo, compras, pagamentos}
   token: '',         // token do primo logado (rota /?t=...), usado pra ele lançar coisas
+  activitySeenAt: localStorage.getItem('alypay_activity_seen_at') || null,
   activeTab: 'fatura',
   mes: mesAtual(),
   expandidos: new Set(),
@@ -559,14 +556,11 @@ function renderAdminLogin() {
     </div>`;
 }
 
-function pendCountTotal() {
+function unseenAtividadeCount() {
   const { compras, pagamentos } = state.data;
-  return compras.filter((c) => c.status === 'pendente').length + pagamentos.filter((p) => p.status === 'pendente').length;
-}
-function pendCountDe(primoId) {
-  const { compras, pagamentos } = state.data;
-  return comprasDe(compras, primoId).filter((c) => c.status === 'pendente').length
-    + pagamentosDe(pagamentos, primoId).filter((p) => p.status === 'pendente').length;
+  const seen = state.activitySeenAt || '1970-01-01T00:00:00Z';
+  const itens = [...compras, ...pagamentos].filter((x) => x.origem === 'primo');
+  return itens.filter((x) => x.created_at > seen).length;
 }
 
 function renderAdmin() {
@@ -575,16 +569,15 @@ function renderAdmin() {
     p,
     aprovados(comprasDe(compras, p.id)),
     aprovados(pagamentosDe(pagamentos, p.id)),
-    true,
-    pendCountDe(p.id)
+    true
   )).join('');
 
-  const pend = pendCountTotal();
+  const unseen = unseenAtividadeCount();
   const tabs = [
     ['fatura', 'Fatura do mês'],
     ['compra', 'Nova compra'],
     ['pagamento', 'Pagamento'],
-    ['aprovacoes', pend > 0 ? `Aprovações (${pend})` : 'Aprovações'],
+    ['atividade', unseen > 0 ? `🔔 Atividade (${unseen})` : '🔔 Atividade'],
     ['historico', 'Histórico'],
   ].map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
 
@@ -592,7 +585,7 @@ function renderAdmin() {
   if (state.activeTab === 'fatura') tabBody = renderFaturaAdmin();
   else if (state.activeTab === 'compra') tabBody = renderFormCompra();
   else if (state.activeTab === 'pagamento') tabBody = renderFormPagamento();
-  else if (state.activeTab === 'aprovacoes') tabBody = renderAprovacoesAdmin();
+  else if (state.activeTab === 'atividade') tabBody = renderAtividadeAdmin();
   else if (state.activeTab === 'historico') tabBody = renderHistoricoAdmin();
 
   return `
@@ -613,7 +606,7 @@ function renderAdmin() {
 function comprasDe(compras, primoId) { return compras.filter((c) => c.primo_id === primoId); }
 function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.primo_id === primoId); }
 
-function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
+function renderCard(primo, compras, pagamentos, isAdmin) {
   const hoje = mesAtual();
   const saldo = saldoTotal(compras, pagamentos);
   const vencido = saldoVencido(compras, pagamentos, hoje);
@@ -641,10 +634,6 @@ function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
       }
     </div>` : '';
 
-  const pendente = pendCount > 0
-    ? `<div class="cc-pending"${isAdmin ? ' data-action="ir-aprovacoes"' : ''}>⏳ ${pendCount} aguardando aprovação</div>`
-    : '';
-
   return `
     <div class="cc">
       <div class="cc-top">
@@ -665,7 +654,6 @@ function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
       <div class="cc-bar-track"><div class="cc-bar-fill" style="width:${pct}%"></div></div>
       <div class="cc-pct">${pct}% quitado</div>
       ${breakdown}
-      ${pendente}
       ${isAdmin ? `
         <div class="cc-actions">
           <button data-action="copy-link" data-id="${primo.id}">🔗 Copiar link</button>
@@ -761,41 +749,51 @@ function renderFormCompra() {
     </div>`;
 }
 
-function renderAprovacoesAdmin() {
+function renderAtividadeAdmin() {
   const { primos, compras, pagamentos } = state.data;
-  const pendCompras = compras.filter((c) => c.status === 'pendente');
-  const pendPagamentos = pagamentos.filter((p) => p.status === 'pendente');
   const nomeDe = (id) => (primos.find((p) => p.id === id) || {}).nome || '?';
 
-  if (pendCompras.length === 0 && pendPagamentos.length === 0) {
-    return `<div class="card"><div class="empty"><div class="big">✅</div>Nada esperando aprovação. Segue o jogo.</div></div>`;
+  const itens = [
+    ...compras.filter((c) => c.origem === 'primo').map((c) => ({ tipo: 'compra', item: c })),
+    ...pagamentos.filter((p) => p.origem === 'primo').map((p) => ({ tipo: 'pagamento', item: p })),
+  ].sort((a, b) => (a.item.created_at < b.item.created_at ? 1 : -1));
+
+  if (itens.length === 0) {
+    return `<div class="card"><div class="empty"><div class="big">🦗</div>Nenhum lançamento dos primos ainda.</div></div>`;
   }
 
-  const itensCompra = pendCompras.map((c) => `
-    <div class="line-item">
-      <div class="info">
-        <div class="desc">🛍️ ${esc(c.descricao)} <span class="badge-parc">${esc(nomeDe(c.primo_id))}</span></div>
-        <div class="meta">${c.parcelas ? `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}` : `${formatBRL(c.total)}/mês`} · desde ${formatMes(c.inicio_mes)}</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="del" style="color:var(--ok)" data-action="aprovar-compra" data-id="${c.id}">✅ aprovar</button>
-        <button class="del" data-action="recusar-compra" data-id="${c.id}">❌ recusar</button>
-      </div>
-    </div>`).join('');
+  const linhas = itens.map(({ tipo, item }) => {
+    const contestado = item.status === 'rejeitado';
+    const badgeContestado = contestado
+      ? ` <span class="badge-parc" style="color:var(--danger);border-color:var(--danger)">🚩 contestado</span>`
+      : '';
+    const acao = contestado
+      ? `<button class="del" style="color:var(--ok)" data-action="restaurar-${tipo}" data-id="${item.id}">↩️ restaurar</button>`
+      : `<button class="del" data-action="contestar-${tipo}" data-id="${item.id}">🚩 contestar</button>`;
 
-  const itensPagamento = pendPagamentos.map((p) => `
-    <div class="line-item">
-      <div class="info">
-        <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} <span class="badge-parc">${esc(nomeDe(p.primo_id))}</span></div>
-        <div class="meta">${p.data} · ${formatBRL(p.valor)}</div>
-      </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="del" style="color:var(--ok)" data-action="aprovar-pagamento" data-id="${p.id}">✅ aprovar</button>
-        <button class="del" data-action="recusar-pagamento" data-id="${p.id}">❌ recusar</button>
-      </div>
-    </div>`).join('');
+    if (tipo === 'compra') {
+      const c = item;
+      return `
+        <div class="line-item">
+          <div class="info">
+            <div class="desc">🛍️ ${esc(c.descricao)} <span class="badge-parc">${esc(nomeDe(c.primo_id))}</span>${badgeContestado}</div>
+            <div class="meta">${c.parcelas ? `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}` : `${formatBRL(c.total)}/mês`} · desde ${formatMes(c.inicio_mes)}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">${acao}</div>
+        </div>`;
+    }
+    const p = item;
+    return `
+      <div class="line-item">
+        <div class="info">
+          <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} <span class="badge-parc">${esc(nomeDe(p.primo_id))}</span>${badgeContestado}</div>
+          <div class="meta">${p.data} · ${formatBRL(p.valor)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">${acao}</div>
+      </div>`;
+  }).join('');
 
-  return `<div class="card"><h3>Aguardando aprovação</h3>${itensCompra}${itensPagamento}</div>`;
+  return `<div class="card"><h3>Lançamentos dos primos</h3>${linhas}</div>`;
 }
 
 function renderFormPagamento() {
@@ -828,7 +826,7 @@ function renderAdicionarPrimo() {
   return `
     <div class="card">
       <h3>Nova compra</h3>
-      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Vai pro Alysson aprovar antes de entrar na conta.</div>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Já entra na conta na hora. O Alysson vê e pode contestar se algo estiver errado.</div>
       <form id="primo-compra-form">
         <div class="field">
           <label for="pc-desc">Descrição</label>
@@ -852,7 +850,7 @@ function renderAdicionarPrimo() {
     </div>
     <div class="card">
       <h3>Registrar pagamento</h3>
-      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Também entra só depois de aprovado.</div>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Também já entra na conta na hora.</div>
       <form id="primo-pagamento-form">
         <div class="field">
           <label for="pp-valor">Valor (R$)</label>
@@ -922,8 +920,7 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
 
 function renderPrimoView() {
   const { primo, compras, pagamentos } = state.data;
-  const pendCount = compras.filter((c) => c.status === 'pendente').length + pagamentos.filter((p) => p.status === 'pendente').length;
-  const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false, pendCount);
+  const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false);
   const tabs = [['fatura', 'Fatura do mês'], ['historico', 'Histórico'], ['adicionar', '+ Adicionar']]
     .map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
 
@@ -970,6 +967,10 @@ async function handleAdminAction(action, target) {
   try {
     if (action === 'tab') {
       state.activeTab = target.dataset.tab;
+      if (target.dataset.tab === 'atividade') {
+        state.activitySeenAt = new Date().toISOString();
+        localStorage.setItem('alypay_activity_seen_at', state.activitySeenAt);
+      }
       render();
     } else if (action === 'mes-prev') {
       state.mes = somaMes(state.mes, -1); render();
@@ -1021,28 +1022,26 @@ async function handleAdminAction(action, target) {
         state.data = await API.adminData(pw);
         showToast('Pagamento excluído.');
       }
-    } else if (action === 'ir-aprovacoes') {
-      state.activeTab = 'aprovacoes'; render();
-    } else if (action === 'aprovar-compra') {
-      await API.patchCompraStatus(pw, target.dataset.id, 'aprovado');
-      state.data = await API.adminData(pw);
-      showToast('Compra aprovada.');
-    } else if (action === 'recusar-compra') {
-      if (confirm('Recusar essa compra?')) {
+    } else if (action === 'contestar-compra') {
+      if (confirm('Contestar essa compra? Ela sai da conta até você decidir, mas o registro continua salvo.')) {
         await API.patchCompraStatus(pw, target.dataset.id, 'rejeitado');
         state.data = await API.adminData(pw);
-        showToast('Compra recusada.');
+        showToast('Compra contestada.');
       }
-    } else if (action === 'aprovar-pagamento') {
-      await API.patchPagamentoStatus(pw, target.dataset.id, 'aprovado');
+    } else if (action === 'restaurar-compra') {
+      await API.patchCompraStatus(pw, target.dataset.id, 'aprovado');
       state.data = await API.adminData(pw);
-      showToast('Pagamento aprovado.');
-    } else if (action === 'recusar-pagamento') {
-      if (confirm('Recusar esse pagamento?')) {
+      showToast('Compra restaurada.');
+    } else if (action === 'contestar-pagamento') {
+      if (confirm('Contestar esse pagamento? Ele sai da conta até você decidir, mas o registro continua salvo.')) {
         await API.patchPagamentoStatus(pw, target.dataset.id, 'rejeitado');
         state.data = await API.adminData(pw);
-        showToast('Pagamento recusado.');
+        showToast('Pagamento contestado.');
       }
+    } else if (action === 'restaurar-pagamento') {
+      await API.patchPagamentoStatus(pw, target.dataset.id, 'aprovado');
+      state.data = await API.adminData(pw);
+      showToast('Pagamento restaurado.');
     } else if (action === 'logout') {
       sessionStorage.removeItem('alypay_admin_pw');
       location.reload();
@@ -1204,7 +1203,7 @@ document.addEventListener('submit', async (e) => {
       });
       state.data = await API.primo(state.token);
       state.activeTab = 'historico';
-      showToast('Enviado! Aguardando aprovação.');
+      showToast('Lançado! Já contabilizado.');
       render();
     } catch (err) {
       errEl.textContent = err.message;
@@ -1221,7 +1220,7 @@ document.addEventListener('submit', async (e) => {
       });
       state.data = await API.primo(state.token);
       state.activeTab = 'historico';
-      showToast('Enviado! Aguardando aprovação.');
+      showToast('Lançado! Já contabilizado.');
       render();
     } catch (err) {
       errEl.textContent = err.message;

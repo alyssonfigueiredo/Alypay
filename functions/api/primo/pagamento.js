@@ -2,7 +2,8 @@ import { sb, json } from '../../_shared/supabase.js';
 import { resolvePrimoByToken } from '../../_shared/primo.js';
 
 // POST /api/primo/pagamento  { token, valor, nota? }
-// primo_id vem do token validado no servidor. Nasce status="pendente".
+// primo_id vem do token validado no servidor. Já entra aprovado — o
+// admin vê na aba Atividade e pode contestar depois.
 export async function onRequestPost({ request, env }) {
   const body = await request.json().catch(() => ({}));
   const primo = await resolvePrimoByToken(env, body.token);
@@ -21,7 +22,7 @@ export async function onRequestPost({ request, env }) {
       primo_id: primo.id,
       valor: valorNum,
       nota: typeof nota === 'string' && nota.trim() ? nota.trim() : null,
-      status: 'pendente',
+      origem: 'primo',
     }),
   });
 

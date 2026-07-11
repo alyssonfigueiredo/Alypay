@@ -6,8 +6,8 @@ const MES_RE = /^\d{4}-\d{2}$/;
 // POST /api/primo/compra  { token, descricao, total, parcelas, inicio_mes }
 // O primo só lança compra parcelada normal (recorrente e empréstimo
 // ficam a critério do admin). primo_id vem sempre do token validado no
-// servidor, nunca do corpo da requisição. Nasce status="pendente" e só
-// entra nos cálculos de saldo depois que o admin aprova.
+// servidor, nunca do corpo da requisição. Já entra aprovado — o admin
+// vê na aba Atividade e pode contestar (PATCH status=rejeitado) depois.
 export async function onRequestPost({ request, env }) {
   const body = await request.json().catch(() => ({}));
   const primo = await resolvePrimoByToken(env, body.token);
@@ -39,7 +39,7 @@ export async function onRequestPost({ request, env }) {
       parcelas: parcelasNum,
       inicio_mes,
       tipo: 'compra',
-      status: 'pendente',
+      origem: 'primo',
     }),
   });
 

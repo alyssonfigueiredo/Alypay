@@ -24,9 +24,11 @@ create table if not exists compras (
   inicio_mes text not null check (inicio_mes ~ '^\d{4}-\d{2}$'),
   tipo text not null default 'compra' check (tipo in ('compra', 'emprestimo')),
   prazo date,
-  -- Lançamentos criados pelo admin nascem aprovados; lançamentos que um
-  -- primo envia pelo próprio link nascem pendentes e só entram nos
-  -- cálculos de saldo depois que o admin aprova.
+  -- Todo lançamento (do admin ou do primo) já entra valendo (aprovado).
+  -- "origem" diz quem lançou, pra aparecer na aba Atividade do admin;
+  -- "status" vira 'rejeitado' quando o admin contesta um lançamento do
+  -- primo — some do saldo mas o registro continua existindo (auditoria).
+  origem text not null default 'admin' check (origem in ('admin', 'primo')),
   status text not null default 'aprovado' check (status in ('pendente', 'aprovado', 'rejeitado')),
   created_at timestamptz not null default now()
 );
@@ -37,6 +39,7 @@ create table if not exists pagamentos (
   valor numeric(10,2) not null check (valor > 0),
   data date not null default current_date,
   nota text,
+  origem text not null default 'admin' check (origem in ('admin', 'primo')),
   status text not null default 'aprovado' check (status in ('pendente', 'aprovado', 'rejeitado')),
   created_at timestamptz not null default now()
 );

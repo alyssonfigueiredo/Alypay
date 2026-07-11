@@ -17,9 +17,9 @@ export async function onRequestGet({ request, env }) {
   const [compras, pagamentos] = await Promise.all([
     sb(
       env,
-      `compras?primo_id=eq.${primo.id}&select=id,descricao,total,parcelas,inicio_mes,tipo,prazo,status&order=created_at.desc`
+      `compras?primo_id=eq.${primo.id}&select=id,descricao,total,parcelas,inicio_mes,tipo,prazo,origem,status&order=created_at.desc`
     ),
-    sb(env, `pagamentos?primo_id=eq.${primo.id}&select=id,valor,data,nota,status&order=data.desc`),
+    sb(env, `pagamentos?primo_id=eq.${primo.id}&select=id,valor,data,nota,origem,status&order=data.desc`),
   ]);
 
   return json({ primo, compras, pagamentos });
