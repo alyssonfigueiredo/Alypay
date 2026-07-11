@@ -1,4 +1,4 @@
-# Alypay — Boletim do Calote
+# Alypay — Anti-Calote
 
 App de acompanhamento de dívida de cartão de crédito emprestado a dois
 primos, com compras parceladas. Frontend estático (`index.html` único,

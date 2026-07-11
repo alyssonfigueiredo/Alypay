@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="dark" />
-<title>Alypay — Boletim do Calote</title>
+<title>Alypay — Anti-Calote</title>
 <style>
   :root {
     --bg: #0a0a0f;
@@ -496,7 +496,7 @@ function renderAdmin() {
   else if (state.activeTab === 'historico') tabBody = renderHistoricoAdmin();
 
   return `
-    <div class="eyebrow">Alypay · Boletim do Calote</div>
+    <div class="eyebrow">Alypay · Anti-Calote</div>
     <div class="title">Painel admin</div>
     ${cards}
     <div class="toolbar">
@@ -736,7 +736,7 @@ function renderPrimoView() {
   }
 
   return `
-    <div class="eyebrow">Alypay · Boletim do Calote</div>
+    <div class="eyebrow">Alypay · Anti-Calote</div>
     <div class="title">Oi, ${esc(primo.nome.split(' ')[0])}</div>
     ${card}
     <div class="tabs">${tabs}</div>
@@ -827,7 +827,7 @@ function handlePrimoAction(action, target) {
 
 async function copiarResumoWhatsapp() {
   const { primos, compras } = state.data;
-  const linhas = [`*Boletim do Calote — ${formatMes(state.mes)}*`, ''];
+  const linhas = [`*Anti-Calote — ${formatMes(state.mes)}*`, ''];
   for (const primo of primos) {
     const faturaLinhas = faturaDoMes(comprasDe(compras, primo.id), state.mes);
     const subtotal = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
