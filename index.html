@@ -491,8 +491,7 @@ async function boot() {
       state.errorMsg = err.message || 'Link inválido.';
     }
   } else {
-    state.route = 'error';
-    state.errorMsg = 'Nenhum link fornecido.';
+    state.route = 'home';
   }
   render();
 }
@@ -501,6 +500,7 @@ async function boot() {
 function render() {
   const app = document.getElementById('app');
   if (state.route === 'loading') app.innerHTML = renderLoading();
+  else if (state.route === 'home') app.innerHTML = renderHome();
   else if (state.route === 'error') app.innerHTML = renderError();
   else if (state.route === 'admin-login') app.innerHTML = renderAdminLogin();
   else if (state.route === 'admin') app.innerHTML = renderAdmin();
@@ -518,6 +518,19 @@ function render() {
 
 function renderLoading() {
   return `<div class="center-screen"><div class="big-emoji">⏳</div><div>Carregando a vergonha…</div></div>`;
+}
+
+function renderHome() {
+  return `
+    <div class="center-screen">
+      <img class="login-logo" src="/assets/icon.jpg" alt="Alypay" />
+      <div class="title" style="margin:0 0 4px">Alypay</div>
+      <div style="color:var(--muted);font-size:0.86rem;max-width:280px">
+        Isso aqui é só a porta de entrada. Se você é primo, use o link que te mandaram
+        (com <code>?t=...</code> no final). Se é o admin, é ali embaixo.
+      </div>
+      <a href="/admin" class="btn btn-primary login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:18px">Ir pro painel admin</a>
+    </div>`;
 }
 
 function renderError() {
