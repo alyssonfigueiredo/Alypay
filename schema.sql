@@ -15,8 +15,10 @@ create table if not exists compras (
   id uuid primary key default gen_random_uuid(),
   primo_id uuid not null references primos(id) on delete cascade,
   descricao text not null,
+  -- Se parcelada: valor total da compra, dividido por "parcelas".
+  -- Se recorrente (parcelas is null): valor cobrado todo mês, sem fim.
   total numeric(10,2) not null check (total > 0),
-  parcelas int not null check (parcelas between 1 and 24),
+  parcelas int check (parcelas is null or parcelas between 1 and 24),
   inicio_mes text not null check (inicio_mes ~ '^\d{4}-\d{2}$'),
   created_at timestamptz not null default now()
 );

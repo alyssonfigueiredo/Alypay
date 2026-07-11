@@ -237,41 +237,75 @@ function somaMes(mes, delta) {
   const nm = ((total % 12) + 12) % 12 + 1;
   return `${ny}-${String(nm).padStart(2, '0')}`;
 }
+// "Recorrente" = cobrança sem fim (ex: assinatura). Representada com
+// parcelas = null; "total" nesse caso é o valor cobrado todo mês.
+function isRecorrente(compra) { return compra.parcelas === null || compra.parcelas === undefined; }
+
+// Quantos meses existem de "a" até "b", inclusive nas duas pontas
+// (0 ou negativo se "b" vier antes de "a").
+function mesesEntreInclusive(a, b) {
+  const [y1, m1] = a.split('-').map(Number);
+  const [y2, m2] = b.split('-').map(Number);
+  return Math.max(0, (y2 - y1) * 12 + (m2 - m1) + 1);
+}
+
 function parcelaValor(compra, index) {
+  if (isRecorrente(compra)) return compra.total;
   const base = Math.floor((compra.total / compra.parcelas) * 100) / 100;
   const soma = round2(base * (compra.parcelas - 1));
   const ultima = round2(compra.total - soma);
   return index === compra.parcelas - 1 ? ultima : base;
 }
-function parcelasDaCompra(compra) {
-  return Array.from({ length: compra.parcelas }, (_, i) => ({
-    index: i,
-    mes: somaMes(compra.inicio_mes, i),
-    valor: parcelaValor(compra, i),
-  }));
+
+// Retorna a parcela (índice + valor) dessa compra que cai no mês
+// informado, ou null se essa compra não tem nada vencendo nesse mês.
+function parcelaNoMes(compra, mes) {
+  const idx = mesesEntreInclusive(compra.inicio_mes, mes) - 1;
+  if (idx < 0) return null;
+  if (!isRecorrente(compra) && idx >= compra.parcelas) return null;
+  return { index: idx, mes, valor: parcelaValor(compra, idx), recorrente: isRecorrente(compra) };
 }
-function somaCompras(compras) { return round2(compras.reduce((s, c) => s + Number(c.total), 0)); }
-function somaPagamentos(pagamentos) { return round2(pagamentos.reduce((s, p) => s + Number(p.valor), 0)); }
-function saldoTotal(compras, pagamentos) { return round2(somaCompras(compras) - somaPagamentos(pagamentos)); }
-function saldoVencido(compras, pagamentos, mesRef) {
-  let vencidas = 0;
-  for (const c of compras) {
-    for (const p of parcelasDaCompra(c)) {
-      if (p.mes <= mesRef) vencidas += p.valor;
-    }
+
+// Quanto dessa compra já "venceu" (ficou devido) até o mês de referência.
+function totalAcumuladoAte(compra, mesRef) {
+  if (isRecorrente(compra)) {
+    return round2(mesesEntreInclusive(compra.inicio_mes, mesRef) * compra.total);
   }
+  const decorridos = Math.min(compra.parcelas, mesesEntreInclusive(compra.inicio_mes, mesRef));
+  if (decorridos <= 0) return 0;
+  if (decorridos >= compra.parcelas) return Number(compra.total);
+  const base = Math.floor((compra.total / compra.parcelas) * 100) / 100;
+  return round2(base * decorridos);
+}
+
+function somaPagamentos(pagamentos) { return round2(pagamentos.reduce((s, p) => s + Number(p.valor), 0)); }
+
+// Soma das compras pra fins de "saldo total": parceladas entram pelo
+// total cheio (é um compromisso fechado); recorrentes entram só pelo
+// quanto já venceu até hoje (não têm um "total futuro" definido).
+function somaComprasParaSaldo(compras) {
+  const hoje = mesAtual();
+  return round2(compras.reduce((s, c) => s + (isRecorrente(c) ? totalAcumuladoAte(c, hoje) : Number(c.total)), 0));
+}
+
+function saldoTotal(compras, pagamentos) { return round2(somaComprasParaSaldo(compras) - somaPagamentos(pagamentos)); }
+
+function saldoVencido(compras, pagamentos, mesRef) {
+  const vencidas = compras.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0);
   return Math.max(0, round2(vencidas - somaPagamentos(pagamentos)));
 }
+
 function pctQuitado(compras, pagamentos) {
-  const total = somaCompras(compras);
+  const total = somaComprasParaSaldo(compras);
   const pago = somaPagamentos(pagamentos);
   if (total <= 0) return pago > 0 ? 100 : 0;
   return Math.min(100, Math.round((pago / total) * 100));
 }
+
 function faturaDoMes(compras, mes) {
   const linhas = [];
   for (const c of compras) {
-    const p = parcelasDaCompra(c).find((x) => x.mes === mes);
+    const p = parcelaNoMes(c, mes);
     if (p) linhas.push({ compra: c, parcela: p });
   }
   return linhas;
@@ -282,6 +316,9 @@ function statusPrimo(saldo) {
   if (saldo <= 500) return { emoji: '🫠', label: 'Fase Enrolação' };
   if (saldo <= 1500) return { emoji: '😬', label: 'Caloteiro Júnior' };
   return { emoji: '🚨', label: 'Caloteiro Sênior' };
+}
+function parcelaBadge(l) {
+  return l.parcela.recorrente ? 'eterno' : `${l.parcela.index + 1}/${l.compra.parcelas}`;
 }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -492,8 +529,8 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
         ? `<div class="cc-breakdown-empty">Nenhuma compra lançada ainda. Aproveite enquanto dura. 😌</div>`
         : compras.map((c) => `
             <div class="cc-breakdown-item">
-              <span class="desc">${esc(c.descricao)} · ${c.parcelas}x</span>
-              <span class="val">${formatBRL(c.total)}</span>
+              <span class="desc">${esc(c.descricao)} · ${isRecorrente(c) ? 'mensal' : c.parcelas + 'x'}</span>
+              <span class="val">${formatBRL(isRecorrente(c) ? totalAcumuladoAte(c, mesAtual()) : c.total)}</span>
             </div>`).join('')
       }
     </div>` : '';
@@ -551,7 +588,7 @@ function renderFaturaAdmin() {
           : linhas.map((l) => `
               <div class="line-item">
                 <div class="info">
-                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${l.parcela.index + 1}/${l.compra.parcelas}</span></div>
+                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${parcelaBadge(l)}</span></div>
                 </div>
                 <div class="val">${formatBRL(l.parcela.valor)}</div>
               </div>`).join('')
@@ -578,16 +615,20 @@ function renderFormCompra() {
           <label for="c-desc">Descrição</label>
           <input id="c-desc" type="text" placeholder="Ex: iPhone, tênis, rodada no bar" required />
         </div>
-        <div class="field">
-          <label for="c-total">Valor total (R$)</label>
-          <input id="c-total" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        <div class="field" style="display:flex;align-items:center;gap:8px">
+          <input id="c-recorrente" type="checkbox" style="width:auto" />
+          <label for="c-recorrente" style="margin:0">Cobrança recorrente (sem fim, tipo assinatura)</label>
         </div>
         <div class="field">
+          <label for="c-total" id="c-total-label">Valor total (R$)</label>
+          <input id="c-total" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field" id="c-parcelas-field">
           <label for="c-parcelas">Número de parcelas</label>
           <input id="c-parcelas" type="number" min="1" max="24" value="1" required />
         </div>
         <div class="field">
-          <label for="c-mes">Mês da 1ª parcela</label>
+          <label for="c-mes" id="c-mes-label">Mês da 1ª parcela</label>
           <input id="c-mes" type="month" value="${mesAtual()}" required />
         </div>
         <div class="preview-line" id="c-preview">Preencha valor e parcelas pra ver o preview.</div>
@@ -645,9 +686,9 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
             <div class="line-item">
               <div class="info">
                 <div class="desc">🛍️ ${esc(c.descricao)}</div>
-                <div class="meta">${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))} · desde ${formatMes(c.inicio_mes)}</div>
+                <div class="meta">${isRecorrente(c) ? `${formatBRL(c.total)}/mês (eterno)` : `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}`} · desde ${formatMes(c.inicio_mes)}</div>
               </div>
-              <div class="val">${formatBRL(c.total)}</div>
+              <div class="val">${isRecorrente(c) ? formatBRL(totalAcumuladoAte(c, mesAtual())) + ' até agora' : formatBRL(c.total)}</div>
               ${isAdmin ? `<button class="del" data-action="del-compra" data-id="${c.id}">excluir</button>` : ''}
             </div>`;
         }
@@ -686,7 +727,7 @@ function renderPrimoView() {
           : linhas.map((l) => `
               <div class="line-item">
                 <div class="info">
-                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${l.parcela.index + 1}/${l.compra.parcelas}</span></div>
+                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${parcelaBadge(l)}</span></div>
                 </div>
                 <div class="val">${formatBRL(l.parcela.valor)}</div>
               </div>`).join('')
@@ -796,7 +837,7 @@ async function copiarResumoWhatsapp() {
       linhas.push('  nada vencendo esse mês');
     } else {
       for (const l of faturaLinhas) {
-        linhas.push(`  • ${l.compra.descricao} (${l.parcela.index + 1}/${l.compra.parcelas}): ${formatBRL(l.parcela.valor)}`);
+        linhas.push(`  • ${l.compra.descricao} (${parcelaBadge(l)}): ${formatBRL(l.parcela.valor)}`);
       }
       linhas.push(`  subtotal do mês: ${formatBRL(subtotal)}`);
     }
@@ -872,12 +913,14 @@ document.addEventListener('submit', async (e) => {
     const errEl = document.getElementById('c-error');
     errEl.hidden = true;
     try {
+      const recorrente = document.getElementById('c-recorrente').checked;
       await API.createCompra(state.adminPassword, {
         primo_id: document.getElementById('c-primo').value,
         descricao: document.getElementById('c-desc').value,
         total: document.getElementById('c-total').value,
-        parcelas: Number(document.getElementById('c-parcelas').value),
+        parcelas: recorrente ? null : Number(document.getElementById('c-parcelas').value),
         inicio_mes: document.getElementById('c-mes').value,
+        recorrente,
       });
       state.data = await API.adminData(state.adminPassword);
       showToast('Compra lançada.');
@@ -906,17 +949,36 @@ document.addEventListener('submit', async (e) => {
   }
 });
 
-document.addEventListener('input', (e) => {
-  if (['c-total', 'c-parcelas'].includes(e.target.id)) {
-    const total = Number(document.getElementById('c-total').value);
-    const parcelas = Number(document.getElementById('c-parcelas').value) || 1;
-    const preview = document.getElementById('c-preview');
-    if (preview) {
-      preview.textContent = total > 0
-        ? `${parcelas}x de ${formatBRL(total / parcelas)} (total ${formatBRL(total)})`
-        : 'Preencha valor e parcelas pra ver o preview.';
-    }
+function updateCompraPreview() {
+  const recorrenteEl = document.getElementById('c-recorrente');
+  if (!recorrenteEl) return;
+  const recorrente = recorrenteEl.checked;
+  const total = Number(document.getElementById('c-total').value);
+  const parcelas = Number(document.getElementById('c-parcelas').value) || 1;
+  const preview = document.getElementById('c-preview');
+  const parcelasField = document.getElementById('c-parcelas-field');
+  const totalLabel = document.getElementById('c-total-label');
+  const mesLabel = document.getElementById('c-mes-label');
+
+  parcelasField.hidden = recorrente;
+  document.getElementById('c-parcelas').required = !recorrente;
+  totalLabel.textContent = recorrente ? 'Valor mensal (R$)' : 'Valor total (R$)';
+  mesLabel.textContent = recorrente ? 'Mês de início' : 'Mês da 1ª parcela';
+
+  if (total > 0) {
+    preview.textContent = recorrente
+      ? `${formatBRL(total)} por mês, sem data de fim`
+      : `${parcelas}x de ${formatBRL(total / parcelas)} (total ${formatBRL(total)})`;
+  } else {
+    preview.textContent = 'Preencha o valor pra ver o preview.';
   }
+}
+
+document.addEventListener('input', (e) => {
+  if (['c-total', 'c-parcelas', 'c-recorrente'].includes(e.target.id)) updateCompraPreview();
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'c-recorrente') updateCompraPreview();
 });
 
 boot();
