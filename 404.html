@@ -60,6 +60,17 @@
   }
   .eyebrow-logo { width: 15px; height: 15px; border-radius: 50%; flex-shrink: 0; }
   .login-logo { width: 72px; height: 72px; border-radius: 50%; margin-bottom: 6px; box-shadow: 0 8px 24px -8px rgba(0,0,0,0.6); }
+
+  .mascot-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .mascot-avatar { width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0; box-shadow: 0 4px 14px -4px rgba(0,0,0,0.6); }
+  .mascot-bubble {
+    position: relative; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 10px 14px; font-size: 0.86rem; font-weight: 700;
+  }
+  .mascot-bubble::before {
+    content: ''; position: absolute; left: -6px; top: 50%; transform: translateY(-50%);
+    border-width: 6px 8px 6px 0; border-style: solid; border-color: transparent var(--surface-2) transparent transparent;
+  }
   .title { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; margin: 2px 0 20px; }
 
   /* ---------- credit card ---------- */
@@ -334,11 +345,11 @@ function faturaDoMes(compras, mes) {
   return linhas;
 }
 function statusPrimo(saldo) {
-  if (saldo <= 0) return { emoji: '😇', label: 'Primo Exemplar' };
-  if (saldo <= 200) return { emoji: '🙂', label: 'Devedor Simpático' };
-  if (saldo <= 500) return { emoji: '🫠', label: 'Fase Enrolação' };
-  if (saldo <= 1500) return { emoji: '😬', label: 'Caloteiro Júnior' };
-  return { emoji: '🚨', label: 'Caloteiro Sênior' };
+  if (saldo <= 0) return { emoji: '😇', label: 'Primo Exemplar', quip: 'Confesso, tô surpreso. Continua assim.' };
+  if (saldo <= 200) return { emoji: '🙂', label: 'Devedor Simpático', quip: 'Só um lembretezinho...' };
+  if (saldo <= 500) return { emoji: '🫠', label: 'Fase Enrolação', quip: 'Vamos conversar sobre isso?' };
+  if (saldo <= 1500) return { emoji: '😬', label: 'Caloteiro Júnior', quip: 'Sério, de novo?' };
+  return { emoji: '🚨', label: 'Caloteiro Sênior', quip: 'CADÊ O MEU DINHEIRO?!' };
 }
 function parcelaBadge(l) {
   if (l.compra.tipo === 'emprestimo') return 'empréstimo';
@@ -920,6 +931,12 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
 
 function renderPrimoView() {
   const { primo, compras, pagamentos } = state.data;
+  const st = statusPrimo(saldoTotal(aprovados(compras), aprovados(pagamentos)));
+  const mascote = `
+    <div class="mascot-row">
+      <img class="mascot-avatar" src="/assets/icon.jpg" alt="" />
+      <div class="mascot-bubble">${esc(st.quip)}</div>
+    </div>`;
   const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false);
   const tabs = [['fatura', 'Fatura do mês'], ['historico', 'Histórico'], ['adicionar', '+ Adicionar']]
     .map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
@@ -952,6 +969,7 @@ function renderPrimoView() {
   return `
     <div class="eyebrow"><img class="eyebrow-logo" src="/assets/icon.jpg" alt="" />Alypay · Boletim Anti-Calote</div>
     <div class="title">Oi, ${esc(primo.nome.split(' ')[0])}</div>
+    ${mascote}
     ${card}
     <div class="tabs">${tabs}</div>
     ${body}
