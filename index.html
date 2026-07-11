@@ -589,17 +589,23 @@ function comprasDe(compras, primoId) { return compras.filter((c) => c.primo_id =
 function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.primo_id === primoId); }
 
 function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
+  const hoje = mesAtual();
   const saldo = saldoTotal(compras, pagamentos);
-  const vencido = saldoVencido(compras, pagamentos, mesAtual());
+  const vencido = saldoVencido(compras, pagamentos, hoje);
   const pago = somaPagamentos(pagamentos);
   const pct = pctQuitado(compras, pagamentos);
   const st = statusPrimo(saldo);
   const expanded = state.expandidos.has(primo.id);
-  const balanceLabel = saldo < 0 ? 'Crédito' : 'Saldo total';
-  const balanceValue = saldo < 0 ? formatBRL(Math.abs(saldo)) : formatBRL(saldo);
+  const faturaLinhas = faturaDoMes(compras, hoje);
+  const faturaMes = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
+  const mesNome = formatMes(hoje).split(' de ')[0];
 
   const breakdown = expanded ? `
     <div class="cc-breakdown">
+      <div class="cc-breakdown-item" style="font-weight:700">
+        <span class="desc">Saldo total</span>
+        <span class="val">${saldo < 0 ? formatBRL(Math.abs(saldo)) + ' de crédito' : formatBRL(saldo)}</span>
+      </div>
       ${compras.length === 0
         ? `<div class="cc-breakdown-empty">Nenhuma compra lançada ainda. Aproveite enquanto dura. 😌</div>`
         : compras.map((c) => `
@@ -623,9 +629,9 @@ function renderCard(primo, compras, pagamentos, isAdmin, pendCount = 0) {
         </div>
         <div class="cc-status">${st.emoji} ${st.label}</div>
       </div>
-      <div class="cc-balance-label">${balanceLabel}</div>
+      <div class="cc-balance-label">Fatura de ${mesNome}</div>
       <div class="cc-balance ${expanded ? 'expanded' : ''}" data-action="toggle-breakdown" data-id="${primo.id}">
-        ${balanceValue} <span class="chev">▾</span>
+        ${formatBRL(faturaMes)} <span class="chev">▾</span>
       </div>
       <div class="cc-sub">
         <div>Vencido<b>${formatBRL(vencido)}</b></div>
