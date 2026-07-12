@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="color-scheme" content="dark" />
 <title>Alypay — Boletim Anti-Calote</title>
-<link rel="icon" href="/assets/icon.jpg" type="image/jpeg" />
+<link rel="icon" href="/assets/coin.png" type="image/png" />
 <link rel="apple-touch-icon" href="/assets/icon.jpg" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="Alypay — Boletim Anti-Calote" />
@@ -141,6 +141,10 @@
   .cc-valid { text-align: right; flex-shrink: 0; }
   .cc-valid .cc-field-label { text-align: right; }
   .cc-valid-value { font-family: var(--mono); font-size: 0.86rem; }
+  .cc-coin {
+    width: 36px; height: 36px; flex-shrink: 0; align-self: flex-end; display: block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  }
   .cc-sub { display: flex; gap: 22px; margin-top: 14px; font-size: 0.82rem; }
   .cc-sub b { display: block; font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
   .cc-bar-track { margin-top: 14px; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,0.32); }
@@ -705,6 +709,7 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
           <span class="cc-field-label">Válido até</span>
           <div class="cc-valid-value">${mesValido}/${anoValido.slice(2)}</div>
         </div>
+        <img class="cc-coin" src="/assets/coin.png" alt="" />
       </div>
       <div class="cc-sub">
         <div>Vencido<b>${formatBRL(vencido)}</b></div>
