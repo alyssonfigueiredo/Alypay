@@ -98,14 +98,11 @@
     mix-blend-mode: overlay;
   }
   .cc-brand-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 16px; position: relative; }
-  .cc-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
-  .cc-avatar-badge { width: 44px; height: 44px; flex-shrink: 0; }
-  .cc-avatar-badge img {
-    width: 100%; height: 100%; object-fit: contain; display: block;
-    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  .cc-brand { display: flex; align-items: center; min-width: 0; }
+  .cc-logo {
+    height: 52px; width: auto; display: block;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.35));
   }
-  .cc-brand-text { line-height: 1.15; min-width: 0; }
-  .cc-wordmark { font-weight: 800; font-size: 1.06rem; letter-spacing: -0.01em; }
   .cc-tagline {
     margin-top: 16px; text-align: center;
     font-size: 0.66rem; letter-spacing: 0.08em; text-transform: uppercase;
@@ -700,10 +697,7 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
       <div class="cc-doodles"></div>
       <div class="cc-brand-row">
         <div class="cc-brand">
-          <span class="cc-avatar-badge"><img src="/assets/card-badge.png" alt="" /></span>
-          <span class="cc-brand-text">
-            <span class="cc-wordmark">Alypay</span>
-          </span>
+          <img class="cc-logo" src="/assets/logo.png" alt="Alypay" />
         </div>
         <div class="cc-network">${st.emoji}<small>${st.label}</small></div>
       </div>
