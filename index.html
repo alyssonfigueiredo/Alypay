@@ -75,17 +75,61 @@
 
   /* ---------- credit card ---------- */
   .cc {
+    --ap-violet: #5B2AA8;
+    --ap-violet-deep: #3E1C78;
+    --ap-blue: #2E6FF2;
+    --ap-gold: #D8B565;
+    --ap-gold-light: #F1DDA0;
     border-radius: 20px;
     padding: 22px 20px 20px;
-    background: linear-gradient(135deg, var(--acc-a), var(--acc-b) 55%, var(--acc-c));
-    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 22px 44px -22px rgba(255,45,120,0.5);
+    background:
+      radial-gradient(140% 160% at 8% 0%, rgba(255,255,255,0.14), transparent 45%),
+      linear-gradient(135deg, var(--ap-violet) 0%, var(--ap-violet) 35%, var(--ap-blue) 100%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 22px 44px -22px rgba(30,10,70,0.6);
     color: #fff;
     margin-bottom: 14px;
     position: relative;
     overflow: hidden;
   }
   .cc + .cc { margin-top: 18px; }
-  .cc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 18px; }
+  .cc-doodles {
+    position: absolute; inset: 0; opacity: 0.08; pointer-events: none;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.6) 0 1px, transparent 1px 46px);
+    mix-blend-mode: overlay;
+  }
+  .cc-brand-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 16px; position: relative; }
+  .cc-brand { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cc-avatar-badge {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.35); overflow: hidden;
+  }
+  .cc-avatar-badge img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .cc-brand-text { line-height: 1.15; min-width: 0; }
+  .cc-wordmark { font-weight: 800; font-size: 1rem; letter-spacing: -0.01em; }
+  .cc-tagline {
+    display: block; font-size: 0.62rem; letter-spacing: 0.06em; text-transform: uppercase;
+    color: rgba(255,255,255,0.7); margin-top: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .cc-network {
+    font-weight: 800; font-style: italic; font-size: 0.86rem; text-align: right;
+    line-height: 1.2; flex-shrink: 0; white-space: nowrap;
+  }
+  .cc-network small { display: block; font-style: normal; font-weight: 600; font-size: 0.62rem; letter-spacing: 0.05em; opacity: 0.8; margin-top: 2px; }
+  .cc-chip-row { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .cc-chip {
+    width: 38px; height: 28px; border-radius: 6px 6px 8px 8px;
+    background: linear-gradient(155deg, var(--ap-gold-light), var(--ap-gold) 55%, #b8935a 100%);
+    position: relative; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.15); flex-shrink: 0;
+  }
+  .cc-chip::before, .cc-chip::after { content: ''; position: absolute; background: rgba(0,0,0,0.18); }
+  .cc-chip::before { left: 32%; right: 32%; top: 0; bottom: 0; width: 1px; }
+  .cc-chip::after { top: 32%; bottom: 32%; left: 0; right: 0; height: 1px; }
+  .cc-holo {
+    width: 22px; height: 22px; border-radius: 3px; margin-left: auto;
+    background: conic-gradient(from 0deg, #f4a9ff, #a9c8ff, #a9ffe0, #fff6a9, #f4a9ff);
+    opacity: 0.85; filter: saturate(1.3);
+  }
   .cc-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
   .cc-name {
     font-weight: 700;
@@ -101,10 +145,6 @@
     width: 26px; height: 26px; border-radius: 999px; cursor: pointer;
     flex-shrink: 0; font-size: 0.8rem; line-height: 1;
   }
-  .cc-status {
-    font-size: 0.76rem; padding: 4px 10px; border-radius: 999px;
-    background: rgba(0,0,0,0.32); white-space: nowrap; flex-shrink: 0;
-  }
   .cc-balance-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.8; margin-bottom: 4px; }
   .cc-balance {
     font-family: var(--mono); font-size: 2rem; font-weight: 600; letter-spacing: -0.01em;
@@ -112,6 +152,14 @@
   }
   .cc-balance .chev { font-size: 0.8rem; opacity: 0.75; transition: transform 0.15s; }
   .cc-balance.expanded .chev { transform: rotate(180deg); }
+  .cc-details-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 16px; }
+  .cc-field-label {
+    display: block; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255,255,255,0.7); margin-bottom: 3px;
+  }
+  .cc-valid { text-align: right; flex-shrink: 0; }
+  .cc-valid .cc-field-label { text-align: right; }
+  .cc-valid-value { font-family: var(--mono); font-size: 0.86rem; }
   .cc-sub { display: flex; gap: 22px; margin-top: 14px; font-size: 0.82rem; }
   .cc-sub b { display: block; font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
   .cc-bar-track { margin-top: 14px; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,0.32); }
@@ -645,18 +693,41 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
       }
     </div>` : '';
 
+  const [anoValido, mesValido] = hoje.split('-');
+
   return `
     <div class="cc">
-      <div class="cc-top">
-        <div class="cc-name-row">
-          <div class="cc-name">${esc(primo.nome)}</div>
-          ${isAdmin ? `<button class="cc-edit-btn" data-action="rename-primo" data-id="${primo.id}" title="Editar nome">✎</button>` : ''}
+      <div class="cc-doodles"></div>
+      <div class="cc-brand-row">
+        <div class="cc-brand">
+          <span class="cc-avatar-badge"><img src="/assets/icon.jpg" alt="" /></span>
+          <span class="cc-brand-text">
+            <span class="cc-wordmark">Alypay</span>
+            <span class="cc-tagline">Cobrança sem stress, só diversão</span>
+          </span>
         </div>
-        <div class="cc-status">${st.emoji} ${st.label}</div>
+        <div class="cc-network">${st.emoji}<small>${st.label}</small></div>
+      </div>
+      <div class="cc-chip-row">
+        <div class="cc-chip"></div>
+        <div class="cc-holo"></div>
       </div>
       <div class="cc-balance-label">Fatura de ${mesNome}</div>
       <div class="cc-balance ${expanded ? 'expanded' : ''}" data-action="toggle-breakdown" data-id="${primo.id}">
         ${formatBRL(faturaMes)} <span class="chev">▾</span>
+      </div>
+      <div class="cc-details-row">
+        <div class="cc-name-row">
+          <div>
+            <span class="cc-field-label">Titular</span>
+            <div class="cc-name">${esc(primo.nome)}</div>
+          </div>
+          ${isAdmin ? `<button class="cc-edit-btn" data-action="rename-primo" data-id="${primo.id}" title="Editar nome">✎</button>` : ''}
+        </div>
+        <div class="cc-valid">
+          <span class="cc-field-label">Válido até</span>
+          <div class="cc-valid-value">${mesValido}/${anoValido.slice(2)}</div>
+        </div>
       </div>
       <div class="cc-sub">
         <div>Vencido<b>${formatBRL(vencido)}</b></div>
