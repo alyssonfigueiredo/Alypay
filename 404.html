@@ -145,7 +145,7 @@
     width: 36px; height: 36px; flex-shrink: 0; align-self: flex-end; display: block;
     filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
   }
-  .cc-sub { display: flex; gap: 22px; margin-top: 14px; font-size: 0.82rem; }
+  .cc-sub { display: flex; flex-wrap: wrap; gap: 14px 22px; margin-top: 14px; font-size: 0.82rem; }
   .cc-sub b { display: block; font-family: var(--mono); font-size: 1rem; font-variant-numeric: tabular-nums; margin-top: 2px; }
   .cc-bar-track { margin-top: 14px; height: 6px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,0.32); }
   .cc-bar-fill { height: 100%; background: #fff; transition: width 0.3s; }
@@ -360,6 +360,25 @@ function saldoTotal(compras, pagamentos) { return round2(somaComprasParaSaldo(co
 function saldoVencido(compras, pagamentos, mesRef) {
   const vencidas = compras.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0);
   return Math.max(0, round2(vencidas - somaPagamentos(pagamentos)));
+}
+
+function isEmprestimo(compra) { return compra.tipo === 'emprestimo'; }
+
+// Empréstimos em dinheiro não são fatura de cartão: não têm vencimento
+// mensal e não devem inflar o "Vencido". Ficam numa linha própria
+// ("Emprestado"), abatida pelo que sobrar do pagamento depois de cobrir
+// o vencido do cartão (pagamento paga cartão primeiro, sobra vai pro
+// empréstimo — mesma lógica de "pool único" que o resto do saldo já usa).
+function splitCartaoEmprestimo(compras, pagamentos, mesRef) {
+  const cartao = compras.filter((c) => !isEmprestimo(c));
+  const emprestimos = compras.filter(isEmprestimo);
+  const vencidoCartaoBruto = cartao.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0);
+  const emprestadoBruto = round2(emprestimos.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0));
+  const pago = somaPagamentos(pagamentos);
+  const vencidoCartao = Math.max(0, round2(vencidoCartaoBruto - pago));
+  const sobraPagamento = Math.max(0, round2(pago - vencidoCartaoBruto));
+  const emprestado = Math.max(0, round2(emprestadoBruto - sobraPagamento));
+  return { cartao, emprestimos, vencidoCartao, emprestadoBruto, emprestado };
 }
 
 function pctQuitado(compras, pagamentos) {
@@ -653,12 +672,12 @@ function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.p
 function renderCard(primo, compras, pagamentos, isAdmin) {
   const hoje = mesAtual();
   const saldo = saldoTotal(compras, pagamentos);
-  const vencido = saldoVencido(compras, pagamentos, hoje);
+  const { cartao, vencidoCartao, emprestadoBruto, emprestado } = splitCartaoEmprestimo(compras, pagamentos, hoje);
   const pago = somaPagamentos(pagamentos);
   const pct = pctQuitado(compras, pagamentos);
   const st = statusPrimo(saldo);
   const expanded = state.expandidos.has(primo.id);
-  const faturaLinhas = faturaDoMes(compras, hoje);
+  const faturaLinhas = faturaDoMes(cartao, hoje);
   const faturaMes = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
   const mesNome = formatMes(hoje).split(' de ')[0];
 
@@ -672,7 +691,7 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
         ? `<div class="cc-breakdown-empty">Nenhuma compra lançada ainda. Aproveite enquanto dura. 😌</div>`
         : compras.map((c) => `
             <div class="cc-breakdown-item">
-              <span class="desc">${esc(c.descricao)} · ${c.tipo === 'emprestimo' ? 'empréstimo' : (isRecorrente(c) ? 'mensal' : c.parcelas + 'x')}</span>
+              <span class="desc">${esc(c.descricao)} · ${c.tipo === 'emprestimo' ? ('empréstimo' + (c.prazo ? ' · até ' + formatData(c.prazo) : ' · sem prazo')) : (isRecorrente(c) ? 'mensal' : c.parcelas + 'x')}</span>
               <span class="val">${formatBRL(isRecorrente(c) ? totalAcumuladoAte(c, mesAtual()) : c.total)}</span>
             </div>`).join('')
       }
@@ -712,8 +731,9 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
         <img class="cc-coin" src="/assets/coin.png" alt="" />
       </div>
       <div class="cc-sub">
-        <div>Vencido<b>${formatBRL(vencido)}</b></div>
+        <div>Vencido<b>${formatBRL(vencidoCartao)}</b></div>
         <div>Pago<b>${formatBRL(pago)}</b></div>
+        ${emprestadoBruto > 0 ? `<div>💸 Emprestado<b>${formatBRL(emprestado)}</b></div>` : ''}
       </div>
       <div class="cc-bar-track"><div class="cc-bar-fill" style="width:${pct}%"></div></div>
       <div class="cc-pct">${pct}% quitado</div>
