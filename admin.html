@@ -224,6 +224,8 @@
   .btn-primary { background: linear-gradient(135deg, var(--acc-a), var(--acc-c)); color: #0a0a0f; }
   .btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
   .form-error { color: var(--danger); font-size: 0.82rem; margin: -6px 0 12px; }
+  .pix-box .pix-sub { font-size: 0.84rem; color: var(--muted); }
+  .pix-hint { font-size: 0.74rem; color: var(--muted); margin-top: 8px; text-align: center; }
 
   /* ---------- fatura / historico lists ---------- */
   .line-group + .line-group { margin-top: 18px; }
@@ -290,6 +292,7 @@ const state = {
   portalAvatares: null,   // [{id, avatar}] carregado do /entrar
   portalSelecionado: null,
   portalError: '',
+  pix: null,              // {disponivel, tipo, nome, codigo} carregado na tela do primo
 };
 
 /* ============================== lógica pura ============================== */
@@ -529,6 +532,12 @@ const API = {
     if (!res.ok) throw new Error(body.error || 'Erro ao enviar pagamento.');
     return body;
   },
+  async pix() {
+    const res = await fetch('/api/pix');
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao carregar PIX.');
+    return body;
+  },
   async portalAvatares() {
     const res = await fetch('/api/portal/avatares');
     const body = await res.json();
@@ -590,6 +599,7 @@ async function boot() {
     try {
       state.data = await API.primo(token);
       state.route = 'primo';
+      try { state.pix = await API.pix(); } catch { state.pix = null; }
     } catch (err) {
       state.route = 'error';
       state.errorMsg = err.message || 'Link inválido.';
@@ -1136,10 +1146,26 @@ function renderPrimoView() {
     <div class="title">Oi, ${esc(primo.nome.split(' ')[0])}</div>
     ${mascote}
     ${card}
+    ${renderPixBox()}
     <div class="tabs">${tabs}</div>
     ${body}
     <div class="footer-note">dá pra adicionar compra/pagamento — o resto só quem manda edita 😇</div>
   `;
+}
+
+function renderPixBox() {
+  const pix = state.pix;
+  if (!pix || !pix.disponivel) return '';
+  return `
+    <div class="card pix-box">
+      <h3>💸 Pagar com Pix</h3>
+      <div class="pix-sub">Chave ${esc(tipoPixLabel(pix.tipo))}${pix.nome ? ' · ' + esc(pix.nome) : ''}</div>
+      <button class="btn btn-primary" data-action="copy-pix" style="margin-top:12px">📋 Copiar código Pix</button>
+      <div class="pix-hint">Cola no "Pix Copia e Cola" do seu banco.</div>
+    </div>`;
+}
+function tipoPixLabel(tipo) {
+  return { celular: 'celular', cpf: 'CPF', email: 'e-mail', aleatoria: 'aleatória' }[tipo] || tipo;
 }
 
 /* ============================== ações ============================== */
@@ -1244,7 +1270,7 @@ async function handleAdminAction(action, target) {
   }
 }
 
-function handlePrimoAction(action, target) {
+async function handlePrimoAction(action, target) {
   if (action === 'tab') { state.activeTab = target.dataset.tab; render(); }
   else if (action === 'mes-prev') { state.mes = somaMes(state.mes, -1); render(); }
   else if (action === 'mes-next') { state.mes = somaMes(state.mes, 1); render(); }
@@ -1253,6 +1279,9 @@ function handlePrimoAction(action, target) {
     const id = target.dataset.id;
     state.expandidos.has(id) ? state.expandidos.delete(id) : state.expandidos.add(id);
     render();
+  } else if (action === 'copy-pix') {
+    await navigator.clipboard.writeText(state.pix.codigo);
+    showToast('Código Pix copiado.');
   }
 }
 

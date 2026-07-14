@@ -48,8 +48,12 @@ npx wrangler pages deploy . --project-name alypay --branch main --commit-dirty=t
   production branch, independente do branch git real).
 - Logo após deploy, POSTs podem dar 522/000 transitório — repetir.
 - Secrets do runtime (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`,
-  `ADMIN_PASSWORD`): `npx wrangler pages secret put <NOME> --project-name alypay`.
-  Trocar secret exige um deploy depois pra valer.
+  `ADMIN_PASSWORD`, `PIX_CODIGO`, `PIX_TIPO`, `PIX_NOME`):
+  `npx wrangler pages secret put <NOME> --project-name alypay`.
+  Trocar secret exige um deploy depois pra valer. `PIX_CODIGO` é o payload
+  "Pix Copia e Cola" (EMV/BR Code) completo do Alysson, gerado pelo banco
+  dele — `GET /api/pix` devolve pronto pra copiar; a tela do primo mostra
+  um botão "Copiar código Pix" (só aparece se o secret existir).
 
 ## Dados / regras de negócio
 
