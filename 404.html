@@ -225,6 +225,12 @@
   .btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
   .form-error { color: var(--danger); font-size: 0.82rem; margin: -6px 0 12px; }
   .pix-box .pix-sub { font-size: 0.84rem; color: var(--muted); }
+  .pix-custom-row { display: flex; gap: 8px; margin-top: 10px; }
+  .pix-custom-row input {
+    flex: 1; min-width: 0; padding: 10px 11px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 0.92rem;
+  }
+  .pix-custom-row button { width: auto; padding: 10px 14px; flex-shrink: 0; }
   .pix-hint { font-size: 0.74rem; color: var(--muted); margin-top: 8px; text-align: center; }
 
   /* ---------- fatura / historico lists ---------- */
@@ -402,6 +408,16 @@ function splitCartaoEmprestimo(compras, pagamentos, mesRef) {
   return { cartao, emprestimos, vencidoCartao, emprestadoBruto, emprestado };
 }
 
+// Total da fatura do cartão que vence no mês corrente (mesma conta que
+// aparece no valor grande do cartão). Não inclui empréstimo nem meses
+// passados — só o que cai no mês de hoje.
+function faturaCartaoMesAtual(compras, pagamentos) {
+  const hoje = mesAtual();
+  const { cartao } = splitCartaoEmprestimo(compras, pagamentos, hoje);
+  const linhas = faturaDoMes(cartao, hoje);
+  return round2(linhas.reduce((s, l) => s + l.parcela.valor, 0));
+}
+
 function pctQuitado(compras, pagamentos) {
   const total = somaComprasParaSaldo(compras);
   const pago = somaPagamentos(pagamentos);
@@ -440,6 +456,33 @@ function avatarPrimo(id) {
 }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+// Monta um código Pix "copia e cola" (BR Code / EMV) na hora, com ou sem
+// valor embutido — assim dá pra gerar tanto o da fatura do mês quanto um
+// valor escolhido pelo primo, sem depender de um código estático fixo.
+// CRC16/CCITT-FALSE (poly 0x1021, init 0xFFFF), padrão exigido pelo Pix.
+function pixCRC16(str) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < str.length; i++) {
+    crc ^= (str.charCodeAt(i) << 8);
+    for (let b = 0; b < 8; b++) {
+      crc = (crc & 0x8000) ? ((crc << 1) ^ 0x1021) & 0xFFFF : (crc << 1) & 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+function pixTLV(id, value) {
+  return id + String(value.length).padStart(2, '0') + value;
+}
+function gerarPixCopiaCola(pix, valor) {
+  const merchantAccount = pixTLV('00', 'br.gov.bcb.pix') + pixTLV('01', pix.chave);
+  let payload = pixTLV('00', '01') + pixTLV('01', '11') + pixTLV('26', merchantAccount) + pixTLV('52', '0000') + pixTLV('53', '986');
+  if (valor > 0) payload += pixTLV('54', valor.toFixed(2));
+  payload += pixTLV('58', 'BR') + pixTLV('59', (pix.nome || '').slice(0, 25)) + pixTLV('60', (pix.cidade || '').slice(0, 15));
+  payload += pixTLV('62', pixTLV('05', '***'));
+  payload += '6304';
+  return payload + pixCRC16(payload);
 }
 
 /* ============================== API ============================== */
@@ -773,13 +816,12 @@ function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.p
 function renderCard(primo, compras, pagamentos, isAdmin) {
   const hoje = mesAtual();
   const saldo = saldoTotal(compras, pagamentos);
-  const { cartao, vencidoCartao, emprestadoBruto, emprestado } = splitCartaoEmprestimo(compras, pagamentos, hoje);
+  const { vencidoCartao, emprestadoBruto, emprestado } = splitCartaoEmprestimo(compras, pagamentos, hoje);
   const pago = somaPagamentos(pagamentos);
   const pct = pctQuitado(compras, pagamentos);
   const st = statusPrimo(saldo);
   const expanded = state.expandidos.has(primo.id);
-  const faturaLinhas = faturaDoMes(cartao, hoje);
-  const faturaMes = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
+  const faturaMes = faturaCartaoMesAtual(compras, pagamentos);
   const mesNome = formatMes(hoje).split(' de ')[0];
 
   const breakdown = expanded ? `
@@ -1156,11 +1198,20 @@ function renderPrimoView() {
 function renderPixBox() {
   const pix = state.pix;
   if (!pix || !pix.disponivel) return '';
+  const { compras, pagamentos } = state.data;
+  const faturaMes = faturaCartaoMesAtual(aprovados(compras), aprovados(pagamentos));
+  const primeiroNome = (pix.nome || '').split(' ')[0];
   return `
     <div class="card pix-box">
       <h3>💸 Pagar com Pix</h3>
-      <div class="pix-sub">Chave ${esc(tipoPixLabel(pix.tipo))}${pix.nome ? ' · ' + esc(pix.nome) : ''}</div>
-      <button class="btn btn-primary" data-action="copy-pix" style="margin-top:12px">📋 Copiar código Pix</button>
+      <div class="pix-sub">Chave ${esc(tipoPixLabel(pix.tipo))}${primeiroNome ? ' · ' + esc(primeiroNome) : ''}</div>
+      ${faturaMes > 0
+        ? `<button class="btn btn-primary" data-action="copy-pix-fatura" data-valor="${faturaMes}" style="margin-top:12px">📋 Copiar Pix da fatura (${formatBRL(faturaMes)})</button>`
+        : ''}
+      <div class="pix-custom-row">
+        <input id="pix-valor-custom" type="text" inputmode="decimal" placeholder="Outro valor (R$)" />
+        <button class="btn btn-ghost" data-action="copy-pix-custom">Copiar</button>
+      </div>
       <div class="pix-hint">Cola no "Pix Copia e Cola" do seu banco.</div>
     </div>`;
 }
@@ -1279,8 +1330,15 @@ async function handlePrimoAction(action, target) {
     const id = target.dataset.id;
     state.expandidos.has(id) ? state.expandidos.delete(id) : state.expandidos.add(id);
     render();
-  } else if (action === 'copy-pix') {
-    await navigator.clipboard.writeText(state.pix.codigo);
+  } else if (action === 'copy-pix-fatura') {
+    const valor = Number(target.dataset.valor);
+    await navigator.clipboard.writeText(gerarPixCopiaCola(state.pix, valor));
+    showToast('Código Pix copiado — valor da fatura do mês.');
+  } else if (action === 'copy-pix-custom') {
+    const input = document.getElementById('pix-valor-custom');
+    const valor = Number((input.value || '').replace(',', '.'));
+    if (!valor || valor <= 0) { showToast('Digita um valor válido.'); return; }
+    await navigator.clipboard.writeText(gerarPixCopiaCola(state.pix, valor));
     showToast('Código Pix copiado.');
   }
 }
