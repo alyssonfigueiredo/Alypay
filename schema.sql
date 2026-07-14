@@ -8,6 +8,9 @@ create table if not exists primos (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
   token_acesso uuid not null unique default gen_random_uuid(),
+  -- PIN de 4 dígitos: trava leve do portal /entrar (escolheu o avatar,
+  -- confirma com o PIN). Null até o admin gerar um.
+  pin_acesso text,
   created_at timestamptz not null default now()
 );
 

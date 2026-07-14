@@ -7,7 +7,7 @@ export async function onRequestGet({ request, env }) {
   if (denied) return denied;
 
   const [primos, compras, pagamentos] = await Promise.all([
-    sb(env, 'primos?select=id,nome,token_acesso,created_at&order=created_at.asc'),
+    sb(env, 'primos?select=id,nome,token_acesso,pin_acesso,created_at&order=created_at.asc'),
     sb(
       env,
       'compras?select=id,primo_id,descricao,total,parcelas,inicio_mes,tipo,prazo,origem,status,created_at&order=created_at.desc'

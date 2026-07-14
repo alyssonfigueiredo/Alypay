@@ -73,6 +73,16 @@
   }
   .title { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; margin: 2px 0 20px; }
 
+  .portal-grid { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .portal-avatar-btn {
+    border: none; background: none; padding: 0; cursor: pointer; border-radius: 50%;
+    width: 132px; height: 132px; flex-shrink: 0;
+    box-shadow: 0 10px 26px -10px rgba(0,0,0,0.6);
+    transition: transform 0.15s;
+  }
+  .portal-avatar-btn:hover, .portal-avatar-btn:focus-visible { transform: scale(1.05); outline: 2px solid var(--acc-c); outline-offset: 3px; }
+  .portal-avatar-btn img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
   /* ---------- credit card ---------- */
   .cc {
     --ap-violet: #5B2AA8;
@@ -150,9 +160,9 @@
   .cc-bar-track { margin-top: 16px; height: 7px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,0.32); }
   .cc-bar-fill { height: 100%; background: #fff; transition: width 0.3s; }
   .cc-pct { font-size: 0.74rem; opacity: 0.85; margin-top: 7px; }
-  .cc-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .cc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
   .cc-actions button {
-    flex: 1; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.18);
+    flex: 1; min-width: 100px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.18);
     color: #fff; border-radius: 10px; padding: 8px 6px; font-size: 0.74rem; cursor: pointer;
   }
 
@@ -261,7 +271,7 @@
 <script>
 /* ============================== estado ============================== */
 const state = {
-  route: 'loading', // loading | admin-login | admin | primo | error
+  route: 'loading', // loading | admin-login | admin | primo | error | portal
   errorMsg: '',
   adminPassword: sessionStorage.getItem('alypay_admin_pw') || '',
   loginError: '',
@@ -272,6 +282,9 @@ const state = {
   mes: mesAtual(),
   expandidos: new Set(),
   toast: null,
+  portalAvatares: null,   // [{id, avatar}] carregado do /entrar
+  portalSelecionado: null,
+  portalError: '',
 };
 
 /* ============================== lógica pura ============================== */
@@ -509,6 +522,22 @@ const API = {
     if (!res.ok) throw new Error(body.error || 'Erro ao enviar pagamento.');
     return body;
   },
+  async portalAvatares() {
+    const res = await fetch('/api/portal/avatares');
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao carregar.');
+    return body.avatares;
+  },
+  async portalEntrar(primoId, pin) {
+    const res = await fetch('/api/portal/entrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ primo_id: primoId, pin }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'PIN incorreto.');
+    return body.token;
+  },
   async updatePrimo(password, id, patch) {
     const res = await fetch(`/api/admin/primo/${id}`, {
       method: 'PATCH',
@@ -558,6 +587,14 @@ async function boot() {
       state.route = 'error';
       state.errorMsg = err.message || 'Link inválido.';
     }
+  } else if (location.pathname.replace(/\/$/, '') === '/entrar') {
+    try {
+      state.portalAvatares = await API.portalAvatares();
+      state.route = 'portal';
+    } catch (err) {
+      state.route = 'error';
+      state.errorMsg = err.message || 'Erro ao carregar o portal.';
+    }
   } else {
     state.route = 'home';
   }
@@ -573,6 +610,7 @@ function render() {
   else if (state.route === 'admin-login') app.innerHTML = renderAdminLogin();
   else if (state.route === 'admin') app.innerHTML = renderAdmin();
   else if (state.route === 'primo') app.innerHTML = renderPrimoView();
+  else if (state.route === 'portal') app.innerHTML = renderPortal();
 
   if (state.toast) {
     const t = document.createElement('div');
@@ -594,10 +632,48 @@ function renderHome() {
       <img class="login-logo" src="/assets/icon.jpg" alt="Alypay" />
       <div class="title" style="margin:0 0 4px">Alypay</div>
       <div style="color:var(--muted);font-size:0.86rem;max-width:280px">
-        Isso aqui é só a porta de entrada. Se você é primo, use o link que te mandaram
-        (com <code>?t=...</code> no final). Se é o admin, é ali embaixo.
+        Isso aqui é só a porta de entrada. Se você é primo, o seu acesso é pelo portal.
+        Se é o admin, é ali embaixo.
       </div>
-      <a href="/admin" class="btn btn-primary login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:18px">Ir pro painel admin</a>
+      <a href="/entrar" class="btn btn-primary login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:18px">Portal dos primos</a>
+      <a href="/admin" class="btn btn-ghost login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:10px">Ir pro painel admin</a>
+    </div>`;
+}
+
+function renderPortal() {
+  const avatares = state.portalAvatares || [];
+  const selecionado = state.portalSelecionado;
+
+  if (selecionado) {
+    return `
+      <div class="center-screen">
+        <img class="login-logo" src="${esc(avatares.find((a) => a.id === selecionado)?.avatar || '/assets/icon.jpg')}" alt="" />
+        <div class="title" style="margin:0 0 4px">É você mesmo?</div>
+        <div style="color:var(--muted);font-size:0.86rem">Confirma com o seu PIN de 4 dígitos.</div>
+        <form id="portal-pin-form" class="login-box">
+          <div class="field" style="margin-top:18px">
+            <label for="portal-pin">PIN</label>
+            <input id="portal-pin" type="tel" inputmode="numeric" pattern="\\d{4}" maxlength="4"
+              autocomplete="off" required autofocus style="letter-spacing:0.5em;text-align:center;font-size:1.2rem" />
+          </div>
+          ${state.portalError ? `<div class="form-error">${esc(state.portalError)}</div>` : ''}
+          <button class="btn btn-primary" type="submit">Entrar</button>
+          <button class="btn btn-ghost" type="button" data-action="portal-voltar" style="margin-top:10px">‹ Não sou eu</button>
+        </form>
+      </div>`;
+  }
+
+  return `
+    <div class="center-screen">
+      <div class="eyebrow"><img class="eyebrow-logo" src="/assets/coin.png" alt="" />Alypay · Boletim Anti-Calote</div>
+      <div class="title" style="margin:2px 0 4px">Quem é você?</div>
+      <div style="color:var(--muted);font-size:0.86rem;max-width:280px;margin-bottom:22px">Clica na sua cara.</div>
+      <div class="portal-grid">
+        ${avatares.map((a) => `
+          <button class="portal-avatar-btn" data-action="portal-escolher" data-id="${a.id}">
+            <img src="${esc(a.avatar)}" alt="" />
+          </button>`).join('')}
+      </div>
     </div>`;
 }
 
@@ -750,6 +826,7 @@ function renderCard(primo, compras, pagamentos, isAdmin) {
         <div class="cc-actions">
           <button data-action="copy-link" data-id="${primo.id}">🔗 Copiar link</button>
           <button data-action="regen-token" data-id="${primo.id}">♻️ Trocar link</button>
+          <button data-action="ver-pin" data-id="${primo.id}">🔢 PIN do portal</button>
         </div>` : ''}
     </div>`;
 }
@@ -1103,6 +1180,16 @@ async function handleAdminAction(action, target) {
       const url = `${location.origin}/?t=${primo.token_acesso}`;
       await navigator.clipboard.writeText(url);
       showToast('Link copiado.');
+    } else if (action === 'ver-pin') {
+      const id = target.dataset.id;
+      let primo = state.data.primos.find((p) => p.id === id);
+      if (!primo.pin_acesso) {
+        await API.updatePrimo(pw, id, { gerar_pin: true });
+        state.data = await API.adminData(pw);
+        primo = state.data.primos.find((p) => p.id === id);
+      }
+      await navigator.clipboard.writeText(primo.pin_acesso);
+      showToast(`PIN de ${primo.nome}: ${primo.pin_acesso} (copiado)`);
     } else if (action === 'copy-resumo') {
       await copiarResumoWhatsapp();
     } else if (action === 'export') {
@@ -1223,10 +1310,31 @@ document.addEventListener('click', (e) => {
   const action = target.dataset.action;
   if (state.route === 'admin') handleAdminAction(action, target);
   else if (state.route === 'primo') handlePrimoAction(action, target);
+  else if (state.route === 'portal') {
+    if (action === 'portal-escolher') {
+      state.portalSelecionado = target.dataset.id;
+      state.portalError = '';
+      render();
+    } else if (action === 'portal-voltar') {
+      state.portalSelecionado = null;
+      state.portalError = '';
+      render();
+    }
+  }
 });
 
 document.addEventListener('submit', async (e) => {
-  if (e.target.id === 'login-form') {
+  if (e.target.id === 'portal-pin-form') {
+    e.preventDefault();
+    const pin = document.getElementById('portal-pin').value;
+    try {
+      const token = await API.portalEntrar(state.portalSelecionado, pin);
+      location.href = `/?t=${encodeURIComponent(token)}`;
+    } catch (err) {
+      state.portalError = err.message;
+      render();
+    }
+  } else if (e.target.id === 'login-form') {
     e.preventDefault();
     const pw = document.getElementById('pw').value;
     const ok = await API.adminLogin(pw);
