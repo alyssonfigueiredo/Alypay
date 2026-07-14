@@ -1212,8 +1212,8 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
 /* ============================== gastos pessoais (extrato/fatura C6) ============================== */
 
 const MESES_PT = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
-const CATEGORIAS = ['alimentacao', 'transporte', 'moradia', 'lazer', 'saude', 'outros'];
-const CATEGORIA_LABEL = { alimentacao: 'Alimentação', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', saude: 'Saúde', outros: 'Outros' };
+const CATEGORIAS = ['alimentacao', 'transporte', 'moradia', 'lazer', 'saude', 'central', 'outros'];
+const CATEGORIA_LABEL = { alimentacao: 'Alimentação', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', saude: 'Saúde', central: 'Central', outros: 'Outros' };
 const CATEGORIA_PALAVRAS = {
   alimentacao: ['ifd', 'restaurante', 'padaria', 'lanchonete', 'marmita', 'ze delivery', 'burger', 'pizza', 'acai', 'cafe'],
   transporte: ['uber', 'uberrides', '99app', 'posto', 'petro', 'pedagio', 'combustivel', 'estacionamento'],
@@ -1226,8 +1226,9 @@ function normalizarTexto(s) {
   return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ');
 }
 
-function sugerirCategoria(descricao) {
+function sugerirCategoria(descricao, valor, isPix) {
   const t = normalizarTexto(descricao);
+  if (isPix && Number(valor) === 60) return 'central';
   for (const [cat, palavras] of Object.entries(CATEGORIA_PALAVRAS)) {
     if (palavras.some((p) => t.includes(p))) return cat;
   }
@@ -1248,7 +1249,7 @@ function parseExtratoC6(texto) {
     if (secao) { ano = Number(secao[1]); continue; }
     const m = raw.match(LINHA_TX_EXTRATO_RE);
     if (!m) continue;
-    const [, dataMD, , descricaoRaw, sinal, valorTxt] = m;
+    const [, dataMD, tipo, descricaoRaw, sinal, valorTxt] = m;
     if (sinal !== '-') continue; // só saída é candidata a gasto — entrada nunca é
     const descricao = descricaoRaw.trim();
     if (/fat\s*cart/i.test(descricao)) continue;      // pagamento da própria fatura — já entra pela fatura
@@ -1259,6 +1260,7 @@ function parseExtratoC6(texto) {
       descricao,
       valor: Number(valorTxt.replace(/\./g, '').replace(',', '.')),
       origem: 'extrato',
+      pix: tipo === 'Saída PIX', // só PIX de fato entra na regra "R$60 -> Central", não qualquer gasto de 60
     });
   }
   return linhas;
@@ -1581,7 +1583,7 @@ async function handleAdminAction(action, target) {
         ...parseExtratoC6(state.gastosTextoExtrato),
         ...parseFaturaC6(state.gastosTextoFatura, state.gastosFaturaCompetencia),
       ].sort((a, b) => (a.data < b.data ? -1 : 1))
-       .map((l) => ({ ...l, categoria: sugerirCategoria(l.descricao) }));
+       .map((l) => ({ ...l, categoria: sugerirCategoria(l.descricao, l.valor, l.pix) }));
       state.gastosPreview = linhas;
       render();
     } else if (action === 'gastos-preview-remover') {
