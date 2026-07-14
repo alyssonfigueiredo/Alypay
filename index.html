@@ -420,13 +420,15 @@ function parcelaBadge(l) {
   if (l.compra.tipo === 'emprestimo') return 'empréstimo';
   return l.parcela.recorrente ? 'eterno' : `${l.parcela.index + 1}/${l.compra.parcelas}`;
 }
-// Avatar pessoal de cada primo (mascote da tela dele). Sem avatar próprio
-// ainda cadastrado, cai no genérico.
-function avatarPrimo(nome) {
-  const n = (nome || '').toLowerCase();
-  if (n.includes('xana')) return '/assets/avatar-xana.jpg';
-  if (n.includes('vec')) return '/assets/avatar-veca.jpg';
-  return '/assets/icon.jpg';
+// Avatar pessoal de cada primo (mascote da tela dele + portal /entrar).
+// Por ID, não por nome — assim renomear o primo no admin não perde o
+// avatar. Sem avatar próprio ainda cadastrado, cai no genérico.
+const AVATAR_POR_ID = {
+  '25f4f51d-98af-45f5-9839-fee0f32ad014': '/assets/avatar-xana.jpg',
+  '8287f1f8-977e-459d-af09-55aee965c6e6': '/assets/avatar-veca.jpg',
+};
+function avatarPrimo(id) {
+  return AVATAR_POR_ID[id] || '/assets/icon.jpg';
 }
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
@@ -1092,7 +1094,7 @@ function renderPrimoView() {
   const st = statusPrimo(saldoTotal(aprovados(compras), aprovados(pagamentos)));
   const mascote = `
     <div class="mascot-row">
-      <img class="mascot-avatar" src="${avatarPrimo(primo.nome)}" alt="" />
+      <img class="mascot-avatar" src="${avatarPrimo(primo.id)}" alt="" />
       <div class="mascot-bubble">${esc(st.quip)}</div>
     </div>`;
   const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false);
