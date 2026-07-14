@@ -7,11 +7,21 @@ build) + Cloudflare Pages Functions + Supabase Postgres.
 ## Arquitetura
 
 - `index.html` — todo o frontend (CSS + JS inline). Roteamento por URL:
-  `/admin` (painel, senha), `/?t=<token>` (visão do primo), `/` (landing).
-- `404.html` — **cópia byte a byte de `index.html`**. É o fallback SPA que
-  funciona; `_redirects` com `/* /index.html 200` NÃO funciona (bug do wrangler
-  detecta "infinite loop" e ignora a regra). Depois de QUALQUER edição em
-  `index.html`, rodar `cp index.html 404.html`.
+  `/admin` (painel, senha), `/entrar` (portal dos primos, escolhe avatar + PIN),
+  `/?t=<token>` (visão do primo), `/` (landing).
+- `404.html`, `admin.html`, `entrar.html` — **cópias byte a byte de
+  `index.html`**. `_redirects` com `/* /index.html 200` NÃO funciona (bug do
+  wrangler detecta "infinite loop" e ignora a regra), então cada rota "limpa"
+  (sem arquivo estático correspondente) vira 404 real a menos que exista um
+  `.html` com esse nome — Cloudflare Pages serve URL limpa (`/admin`) a partir
+  do arquivo (`admin.html`) automaticamente, com status 200 de verdade. Isso
+  importa pra valer: bots de preview de link (WhatsApp etc) não geram card
+  nenhum se o status não for 2xx, mesmo com HTML/meta tags corretos — só
+  `404.html` (que serve 404 mesmo) não bastava pros links `/admin` e `/entrar`.
+  Depois de QUALQUER edição em `index.html`, rodar
+  `cp index.html 404.html && cp index.html admin.html && cp index.html entrar.html`.
+  Se criar uma rota nova sem query string (tipo `/nova-rota`), duplicar o
+  arquivo `.html` correspondente também, senão ela cai no 404 real.
 - `_routes.json` — limita Functions a `/api/*` (deixa estáticos com o 404.html).
 - `functions/api/` — endpoints. `_shared/` tem `supabase.js` (client REST),
   `auth.js` (senha admin via header `X-Admin-Password`), `primo.js`
@@ -26,7 +36,7 @@ build) + Cloudflare Pages Functions + Supabase Postgres.
 ```sh
 # validar JS antes (extrai o <script> e compila):
 node -e "new (require('vm').Script)(require('fs').readFileSync('index.html','utf8').match(/<script>([\s\S]*)<\/script>/)[1])" && echo OK
-cp index.html 404.html
+cp index.html 404.html && cp index.html admin.html && cp index.html entrar.html
 npx wrangler pages deploy . --project-name alypay --branch main --commit-dirty=true
 ```
 

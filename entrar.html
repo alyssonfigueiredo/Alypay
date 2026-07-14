@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="dark" />
+<title>Alypay — Boletim Anti-Calote</title>
+<link rel="icon" href="/assets/coin.png" type="image/png" />
+<link rel="apple-touch-icon" href="/assets/icon.jpg" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://alypay.pages.dev/entrar" />
+<meta property="og:title" content="Alypay — Boletim Anti-Calote" />
+<meta property="og:description" content="Acompanhamento de dívida de cartão parcelada. Sem mais desculpa." />
+<meta property="og:image" content="https://alypay.pages.dev/assets/icon.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:width" content="512" />
+<meta property="og:image:height" content="512" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://alypay.pages.dev/assets/icon.jpg" />
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #14141c;
+    --surface-2: #1a1a24;
+    --border: #2a2a38;
+    --text: #f5f5f7;
+    --muted: #9497a6;
+    --danger: #ff4d4d;
+    --ok: #3ddc84;
+    --acc-a: #ff2d78;
+    --acc-b: #7c2dff;
+    --acc-c: #00e5ff;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button, input, select, textarea { font-family: inherit; }
+
+  #app {
+    max-width: 560px;
+    margin: 0 auto;
+    padding: 20px 16px 90px;
+    min-height: 100%;
+  }
+
+  a { color: var(--acc-c); }
+
+  .eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .eyebrow-logo { width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0; }
+  .login-logo { width: 220px; height: 220px; max-width: 70vw; max-height: 70vw; border-radius: 50%; margin-bottom: 10px; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.6); }
+
+  .mascot-row { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 20px; text-align: center; }
+  .mascot-avatar { width: 200px; height: 200px; border-radius: 50%; object-fit: cover; box-shadow: 0 10px 30px -8px rgba(0,0,0,0.6); }
+  .mascot-bubble {
+    position: relative; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 14px; padding: 12px 18px; font-size: 1rem; font-weight: 700; max-width: 300px;
+  }
+  .mascot-bubble::before {
+    content: ''; position: absolute; left: 50%; top: -7px; transform: translateX(-50%);
+    border-width: 0 7px 7px 7px; border-style: solid; border-color: transparent transparent var(--surface-2) transparent;
+  }
+  .title { font-size: 1.3rem; font-weight: 700; letter-spacing: -0.01em; margin: 2px 0 20px; }
+
+  .portal-grid { display: flex; gap: 22px; flex-wrap: wrap; justify-content: center; }
+  .portal-avatar-btn {
+    border: none; background: none; padding: 0; cursor: pointer; border-radius: 50%;
+    width: 132px; height: 132px; flex-shrink: 0;
+    box-shadow: 0 10px 26px -10px rgba(0,0,0,0.6);
+    transition: transform 0.15s;
+  }
+  .portal-avatar-btn:hover, .portal-avatar-btn:focus-visible { transform: scale(1.05); outline: 2px solid var(--acc-c); outline-offset: 3px; }
+  .portal-avatar-btn img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+
+  /* ---------- credit card ---------- */
+  .cc {
+    --ap-violet: #5B2AA8;
+    --ap-violet-deep: #3E1C78;
+    --ap-blue: #2E6FF2;
+    --ap-gold: #D8B565;
+    --ap-gold-light: #F1DDA0;
+    border-radius: 18px;
+    padding: 26px 24px 24px;
+    background:
+      radial-gradient(140% 160% at 8% 0%, rgba(255,255,255,0.14), transparent 45%),
+      linear-gradient(135deg, var(--ap-violet) 0%, var(--ap-violet) 35%, var(--ap-blue) 100%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.06), 0 22px 44px -22px rgba(30,10,70,0.6);
+    color: #fff;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .cc + .cc { margin-top: 18px; }
+  .cc-doodles {
+    position: absolute; inset: 0; opacity: 0.08; pointer-events: none;
+    background-image: repeating-linear-gradient(115deg, rgba(255,255,255,0.6) 0 1px, transparent 1px 46px);
+    mix-blend-mode: overlay;
+  }
+  .cc-brand-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 18px; position: relative; }
+  .cc-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .cc-logo {
+    height: 54px; width: auto; display: block;
+    filter: drop-shadow(0 2px 5px rgba(0,0,0,0.35));
+  }
+  .cc-brand-text { line-height: 1.2; min-width: 0; }
+  .cc-wordmark { display: block; font-weight: 800; font-size: 1.1rem; letter-spacing: -0.01em; }
+  .cc-brand-tagline { display: block; font-size: 0.66rem; color: rgba(255,255,255,0.75); margin-top: 2px; }
+  .cc-network {
+    font-weight: 800; font-style: italic; font-size: 0.86rem; text-align: right;
+    line-height: 1.2; flex-shrink: 0; white-space: nowrap;
+  }
+  .cc-network small { display: block; font-style: normal; font-weight: 600; font-size: 0.62rem; letter-spacing: 0.05em; opacity: 0.8; margin-top: 2px; }
+  .cc-name-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .cc-name {
+    font-weight: 700;
+    font-size: 1.1rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cc-edit-btn {
+    border: none; background: rgba(0,0,0,0.28); color: #fff;
+    width: 26px; height: 26px; border-radius: 999px; cursor: pointer;
+    flex-shrink: 0; font-size: 0.8rem; line-height: 1;
+  }
+  .cc-balance-label { font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.08em; opacity: 0.8; margin-bottom: 5px; }
+  .cc-balance {
+    font-family: var(--mono); font-size: 2.3rem; font-weight: 600; letter-spacing: -0.01em;
+    font-variant-numeric: tabular-nums; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .cc-balance .chev { font-size: 0.8rem; opacity: 0.75; transition: transform 0.15s; }
+  .cc-balance.expanded .chev { transform: rotate(180deg); }
+  .cc-details-row { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; margin-top: 20px; }
+  .cc-field-label {
+    display: block; font-size: 0.62rem; letter-spacing: 0.08em; text-transform: uppercase;
+    color: rgba(255,255,255,0.7); margin-bottom: 3px;
+  }
+  .cc-valid { text-align: right; flex-shrink: 0; }
+  .cc-valid .cc-field-label { text-align: right; }
+  .cc-valid-value { font-family: var(--mono); font-size: 0.86rem; }
+  .cc-coin {
+    width: 36px; height: 36px; flex-shrink: 0; align-self: flex-end; display: block;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  }
+  .cc-sub { display: flex; flex-wrap: wrap; gap: 16px 26px; margin-top: 18px; font-size: 0.84rem; }
+  .cc-sub b { display: block; font-family: var(--mono); font-size: 1.05rem; font-variant-numeric: tabular-nums; margin-top: 3px; }
+  .cc-bar-track { margin-top: 16px; height: 7px; border-radius: 999px; overflow: hidden; background: rgba(0,0,0,0.32); }
+  .cc-bar-fill { height: 100%; background: #fff; transition: width 0.3s; }
+  .cc-pct { font-size: 0.74rem; opacity: 0.85; margin-top: 7px; }
+  .cc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .cc-actions button {
+    flex: 1; min-width: 100px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.18);
+    color: #fff; border-radius: 10px; padding: 8px 6px; font-size: 0.74rem; cursor: pointer;
+  }
+
+  .cc-breakdown {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,0.22);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .cc-breakdown-item { display: flex; justify-content: space-between; gap: 10px; font-size: 0.82rem; }
+  .cc-breakdown-item .desc { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cc-breakdown-item .val { font-family: var(--mono); font-variant-numeric: tabular-nums; flex-shrink: 0; }
+  .cc-breakdown-empty { font-size: 0.8rem; opacity: 0.8; }
+
+  /* ---------- tabs ---------- */
+  .tabs { display: flex; gap: 6px; margin: 20px 0 16px; overflow-x: auto; padding-bottom: 2px; }
+  .tab {
+    font-size: 0.8rem; font-weight: 600; padding: 9px 14px; border-radius: 999px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+  .tab.active { background: linear-gradient(135deg, var(--acc-a), var(--acc-c)); border-color: transparent; color: #0a0a0f; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 18px; margin-bottom: 14px;
+  }
+  .card h3 { margin: 0 0 14px; font-size: 0.95rem; }
+
+  /* ---------- month nav ---------- */
+  .month-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .month-nav .lbl { font-size: 1rem; font-weight: 700; text-transform: capitalize; }
+  .month-nav button {
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    width: 34px; height: 34px; border-radius: 10px; cursor: pointer; font-size: 1rem;
+  }
+  .month-nav .today-btn { width: auto; padding: 0 12px; font-size: 0.76rem; }
+
+  /* ---------- forms ---------- */
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 0.78rem; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 10px 11px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 0.92rem;
+  }
+  .field input:focus, .field select:focus { outline: 2px solid var(--acc-c); outline-offset: 1px; }
+  .preview-line {
+    font-family: var(--mono); font-size: 0.86rem; color: var(--acc-c);
+    background: rgba(0,229,255,0.08); border: 1px dashed rgba(0,229,255,0.35);
+    border-radius: 10px; padding: 8px 10px; margin-bottom: 14px;
+  }
+  .btn {
+    width: 100%; padding: 12px; border-radius: 12px; border: none; cursor: pointer;
+    font-weight: 700; font-size: 0.92rem;
+  }
+  .btn-primary { background: linear-gradient(135deg, var(--acc-a), var(--acc-c)); color: #0a0a0f; }
+  .btn-ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  .form-error { color: var(--danger); font-size: 0.82rem; margin: -6px 0 12px; }
+
+  /* ---------- fatura / historico lists ---------- */
+  .line-group + .line-group { margin-top: 18px; }
+  .line-group-title {
+    font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted);
+    margin-bottom: 8px; display: flex; justify-content: space-between;
+  }
+  .line-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+  }
+  .line-item:last-child { border-bottom: none; }
+  .line-item .info { min-width: 0; }
+  .line-item .desc { font-size: 0.9rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .line-item .meta { font-size: 0.74rem; color: var(--muted); margin-top: 2px; }
+  .line-item .val { font-family: var(--mono); font-variant-numeric: tabular-nums; flex-shrink: 0; font-size: 0.92rem; }
+  .line-item .del {
+    border: none; background: transparent; color: var(--danger); cursor: pointer; font-size: 0.76rem;
+    flex-shrink: 0; padding: 4px 6px;
+  }
+  .badge-parc {
+    font-family: var(--mono); font-size: 0.7rem; background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 999px; padding: 1px 7px; margin-left: 6px;
+  }
+
+  .empty { text-align: center; padding: 30px 10px; color: var(--muted); font-size: 0.88rem; }
+  .empty .big { font-size: 1.8rem; margin-bottom: 8px; }
+
+  /* ---------- login / error ---------- */
+  .center-screen { min-height: 80vh; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 6px; }
+  .center-screen .big-emoji { font-size: 2.6rem; margin-bottom: 6px; }
+  .login-box { width: 100%; max-width: 320px; margin-top: 18px; }
+
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+  .toolbar button { flex: 1; min-width: 130px; }
+
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--surface-2); border: 1px solid var(--border); color: var(--text);
+    padding: 10px 16px; border-radius: 999px; font-size: 0.82rem; z-index: 50;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+
+  .footer-note { text-align: center; font-size: 0.72rem; color: var(--muted); margin-top: 26px; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* ============================== estado ============================== */
+const state = {
+  route: 'loading', // loading | admin-login | admin | primo | error | portal
+  errorMsg: '',
+  adminPassword: sessionStorage.getItem('alypay_admin_pw') || '',
+  loginError: '',
+  data: null,        // admin: {primos, compras, pagamentos} | primo: {primo, compras, pagamentos}
+  token: '',         // token do primo logado (rota /?t=...), usado pra ele lançar coisas
+  activitySeenAt: localStorage.getItem('alypay_activity_seen_at') || null,
+  activeTab: 'fatura',
+  mes: mesAtual(),
+  expandidos: new Set(),
+  toast: null,
+  portalAvatares: null,   // [{id, avatar}] carregado do /entrar
+  portalSelecionado: null,
+  portalError: '',
+};
+
+/* ============================== lógica pura ============================== */
+function mesAtual() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+function round2(n) { return Math.round((n + Number.EPSILON) * 100) / 100; }
+function formatBRL(n) {
+  return (n || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function formatMes(mes) {
+  const [y, m] = mes.split('-').map(Number);
+  const nomes = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+  return `${nomes[m - 1]} de ${y}`;
+}
+function somaMes(mes, delta) {
+  const [y, m] = mes.split('-').map(Number);
+  const total = (m - 1) + delta;
+  const ny = y + Math.floor(total / 12);
+  const nm = ((total % 12) + 12) % 12 + 1;
+  return `${ny}-${String(nm).padStart(2, '0')}`;
+}
+// "Recorrente" = cobrança sem fim (ex: assinatura). Representada com
+// parcelas = null; "total" nesse caso é o valor cobrado todo mês.
+function isRecorrente(compra) { return compra.parcelas === null || compra.parcelas === undefined; }
+
+// Quantos meses existem de "a" até "b", inclusive nas duas pontas
+// (0 ou negativo se "b" vier antes de "a").
+function mesesEntreInclusive(a, b) {
+  const [y1, m1] = a.split('-').map(Number);
+  const [y2, m2] = b.split('-').map(Number);
+  return Math.max(0, (y2 - y1) * 12 + (m2 - m1) + 1);
+}
+
+function parcelaValor(compra, index) {
+  if (isRecorrente(compra)) return compra.total;
+  const base = Math.floor((compra.total / compra.parcelas) * 100) / 100;
+  const soma = round2(base * (compra.parcelas - 1));
+  const ultima = round2(compra.total - soma);
+  return index === compra.parcelas - 1 ? ultima : base;
+}
+
+// Retorna a parcela (índice + valor) dessa compra que cai no mês
+// informado, ou null se essa compra não tem nada vencendo nesse mês.
+function parcelaNoMes(compra, mes) {
+  const idx = mesesEntreInclusive(compra.inicio_mes, mes) - 1;
+  if (idx < 0) return null;
+  if (!isRecorrente(compra) && idx >= compra.parcelas) return null;
+  return { index: idx, mes, valor: parcelaValor(compra, idx), recorrente: isRecorrente(compra) };
+}
+
+// Quanto dessa compra já "venceu" (ficou devido) até o mês de referência.
+function totalAcumuladoAte(compra, mesRef) {
+  if (isRecorrente(compra)) {
+    return round2(mesesEntreInclusive(compra.inicio_mes, mesRef) * compra.total);
+  }
+  const decorridos = Math.min(compra.parcelas, mesesEntreInclusive(compra.inicio_mes, mesRef));
+  if (decorridos <= 0) return 0;
+  if (decorridos >= compra.parcelas) return Number(compra.total);
+  const base = Math.floor((compra.total / compra.parcelas) * 100) / 100;
+  return round2(base * decorridos);
+}
+
+function somaPagamentos(pagamentos) { return round2(pagamentos.reduce((s, p) => s + Number(p.valor), 0)); }
+
+// Só lançamentos aprovados contam pro saldo. Itens sem "status" (backups
+// antigos, de antes dessa coluna existir) são tratados como aprovados.
+function aprovados(lista) { return lista.filter((x) => x.status === 'aprovado' || x.status === undefined); }
+
+function formatData(iso) {
+  const [y, m, d] = iso.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+// Soma das compras pra fins de "saldo total": parceladas entram pelo
+// total cheio (é um compromisso fechado); recorrentes entram só pelo
+// quanto já venceu até hoje (não têm um "total futuro" definido).
+function somaComprasParaSaldo(compras) {
+  const hoje = mesAtual();
+  return round2(compras.reduce((s, c) => s + (isRecorrente(c) ? totalAcumuladoAte(c, hoje) : Number(c.total)), 0));
+}
+
+function saldoTotal(compras, pagamentos) { return round2(somaComprasParaSaldo(compras) - somaPagamentos(pagamentos)); }
+
+function saldoVencido(compras, pagamentos, mesRef) {
+  const vencidas = compras.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0);
+  return Math.max(0, round2(vencidas - somaPagamentos(pagamentos)));
+}
+
+function isEmprestimo(compra) { return compra.tipo === 'emprestimo'; }
+
+// Empréstimos em dinheiro não são fatura de cartão: não têm vencimento
+// mensal e não devem inflar o "Vencido". Ficam numa linha própria
+// ("Emprestado"), abatida pelo que sobrar do pagamento depois de cobrir
+// o vencido do cartão (pagamento paga cartão primeiro, sobra vai pro
+// empréstimo — mesma lógica de "pool único" que o resto do saldo já usa).
+function splitCartaoEmprestimo(compras, pagamentos, mesRef) {
+  const cartao = compras.filter((c) => !isEmprestimo(c));
+  const emprestimos = compras.filter(isEmprestimo);
+  const vencidoCartaoBruto = cartao.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0);
+  const emprestadoBruto = round2(emprestimos.reduce((s, c) => s + totalAcumuladoAte(c, mesRef), 0));
+  const pago = somaPagamentos(pagamentos);
+  const vencidoCartao = Math.max(0, round2(vencidoCartaoBruto - pago));
+  const sobraPagamento = Math.max(0, round2(pago - vencidoCartaoBruto));
+  const emprestado = Math.max(0, round2(emprestadoBruto - sobraPagamento));
+  return { cartao, emprestimos, vencidoCartao, emprestadoBruto, emprestado };
+}
+
+function pctQuitado(compras, pagamentos) {
+  const total = somaComprasParaSaldo(compras);
+  const pago = somaPagamentos(pagamentos);
+  if (total <= 0) return pago > 0 ? 100 : 0;
+  return Math.min(100, Math.round((pago / total) * 100));
+}
+
+function faturaDoMes(compras, mes) {
+  const linhas = [];
+  for (const c of compras) {
+    const p = parcelaNoMes(c, mes);
+    if (p) linhas.push({ compra: c, parcela: p });
+  }
+  return linhas;
+}
+function statusPrimo(saldo) {
+  if (saldo <= 0) return { emoji: '😇', label: 'Primo Exemplar', quip: 'Confesso, tô surpreso. Continua assim.' };
+  if (saldo <= 200) return { emoji: '🙂', label: 'Devedor Simpático', quip: 'Só um lembretezinho...' };
+  if (saldo <= 500) return { emoji: '🫠', label: 'Fase Enrolação', quip: 'Vamos conversar sobre isso?' };
+  if (saldo <= 1500) return { emoji: '😬', label: 'Caloteiro Júnior', quip: 'Sério, de novo?' };
+  return { emoji: '🚨', label: 'Caloteiro Sênior', quip: 'CADÊ O MEU DINHEIRO?!' };
+}
+function parcelaBadge(l) {
+  if (l.compra.tipo === 'emprestimo') return 'empréstimo';
+  return l.parcela.recorrente ? 'eterno' : `${l.parcela.index + 1}/${l.compra.parcelas}`;
+}
+// Avatar pessoal de cada primo (mascote da tela dele + portal /entrar).
+// Por ID, não por nome — assim renomear o primo no admin não perde o
+// avatar. Sem avatar próprio ainda cadastrado, cai no genérico.
+const AVATAR_POR_ID = {
+  '25f4f51d-98af-45f5-9839-fee0f32ad014': '/assets/avatar-xana.jpg',
+  '8287f1f8-977e-459d-af09-55aee965c6e6': '/assets/avatar-veca.jpg',
+};
+function avatarPrimo(id) {
+  return AVATAR_POR_ID[id] || '/assets/icon.jpg';
+}
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
+/* ============================== API ============================== */
+const API = {
+  async primo(token) {
+    const res = await fetch(`/api/primo?t=${encodeURIComponent(token)}`);
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao carregar.');
+    return body;
+  },
+  async adminLogin(password) {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    });
+    return res.ok;
+  },
+  async adminData(password) {
+    const res = await fetch('/api/admin/data', { headers: { 'X-Admin-Password': password } });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao carregar.');
+    return body;
+  },
+  async createCompra(password, payload) {
+    const res = await fetch('/api/admin/compra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao salvar compra.');
+    return body;
+  },
+  async deleteCompra(password, id) {
+    const res = await fetch(`/api/admin/compra/${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': password } });
+    if (!res.ok) throw new Error('Erro ao excluir compra.');
+  },
+  async patchCompraStatus(password, id, status) {
+    const res = await fetch(`/api/admin/compra/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar compra.');
+    return body;
+  },
+  async createPagamento(password, payload) {
+    const res = await fetch('/api/admin/pagamento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao salvar pagamento.');
+    return body;
+  },
+  async deletePagamento(password, id) {
+    const res = await fetch(`/api/admin/pagamento/${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': password } });
+    if (!res.ok) throw new Error('Erro ao excluir pagamento.');
+  },
+  async patchPagamentoStatus(password, id, status) {
+    const res = await fetch(`/api/admin/pagamento/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify({ status }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar pagamento.');
+    return body;
+  },
+  async createCompraPrimo(token, payload) {
+    const res = await fetch('/api/primo/compra', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...payload }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao enviar compra.');
+    return body;
+  },
+  async createPagamentoPrimo(token, payload) {
+    const res = await fetch('/api/primo/pagamento', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, ...payload }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao enviar pagamento.');
+    return body;
+  },
+  async portalAvatares() {
+    const res = await fetch('/api/portal/avatares');
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao carregar.');
+    return body.avatares;
+  },
+  async portalEntrar(primoId, pin) {
+    const res = await fetch('/api/portal/entrar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ primo_id: primoId, pin }),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'PIN incorreto.');
+    return body.token;
+  },
+  async updatePrimo(password, id, patch) {
+    const res = await fetch(`/api/admin/primo/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify(patch),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar primo.');
+    return body;
+  },
+  async importBackup(password, payload) {
+    const res = await fetch('/api/admin/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
+      body: JSON.stringify(payload),
+    });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error || 'Erro ao importar backup.');
+    return body;
+  },
+};
+
+/* ============================== boot / roteamento ============================== */
+async function boot() {
+  const params = new URLSearchParams(location.search);
+  const token = params.get('t');
+
+  if (location.pathname.replace(/\/$/, '') === '/admin') {
+    if (state.adminPassword) {
+      try {
+        state.data = await API.adminData(state.adminPassword);
+        state.route = 'admin';
+      } catch {
+        sessionStorage.removeItem('alypay_admin_pw');
+        state.adminPassword = '';
+        state.route = 'admin-login';
+      }
+    } else {
+      state.route = 'admin-login';
+    }
+  } else if (token) {
+    state.token = token;
+    try {
+      state.data = await API.primo(token);
+      state.route = 'primo';
+    } catch (err) {
+      state.route = 'error';
+      state.errorMsg = err.message || 'Link inválido.';
+    }
+  } else if (location.pathname.replace(/\/$/, '') === '/entrar') {
+    try {
+      state.portalAvatares = await API.portalAvatares();
+      state.route = 'portal';
+    } catch (err) {
+      state.route = 'error';
+      state.errorMsg = err.message || 'Erro ao carregar o portal.';
+    }
+  } else {
+    state.route = 'home';
+  }
+  render();
+}
+
+/* ============================== render ============================== */
+function render() {
+  const app = document.getElementById('app');
+  if (state.route === 'loading') app.innerHTML = renderLoading();
+  else if (state.route === 'home') app.innerHTML = renderHome();
+  else if (state.route === 'error') app.innerHTML = renderError();
+  else if (state.route === 'admin-login') app.innerHTML = renderAdminLogin();
+  else if (state.route === 'admin') app.innerHTML = renderAdmin();
+  else if (state.route === 'primo') app.innerHTML = renderPrimoView();
+  else if (state.route === 'portal') app.innerHTML = renderPortal();
+
+  if (state.toast) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = state.toast;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2200);
+    state.toast = null;
+  }
+}
+
+function renderLoading() {
+  return `<div class="center-screen"><div class="big-emoji">⏳</div><div>Carregando a vergonha…</div></div>`;
+}
+
+function renderHome() {
+  return `
+    <div class="center-screen">
+      <img class="login-logo" src="/assets/icon.jpg" alt="Alypay" />
+      <div class="title" style="margin:0 0 4px">Alypay</div>
+      <div style="color:var(--muted);font-size:0.86rem;max-width:280px">
+        Isso aqui é só a porta de entrada. Se você é primo, o seu acesso é pelo portal.
+        Se é o admin, é ali embaixo.
+      </div>
+      <a href="/entrar" class="btn btn-primary login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:18px">Portal dos primos</a>
+      <a href="/admin" class="btn btn-ghost login-box" style="display:block;box-sizing:border-box;text-decoration:none;text-align:center;margin-top:10px">Ir pro painel admin</a>
+    </div>`;
+}
+
+function renderPortal() {
+  const avatares = state.portalAvatares || [];
+  const selecionado = state.portalSelecionado;
+
+  if (selecionado) {
+    return `
+      <div class="center-screen">
+        <img class="login-logo" src="${esc(avatares.find((a) => a.id === selecionado)?.avatar || '/assets/icon.jpg')}" alt="" />
+        <div class="title" style="margin:0 0 4px">É você mesmo?</div>
+        <div style="color:var(--muted);font-size:0.86rem">Confirma com o seu PIN de 4 dígitos.</div>
+        <form id="portal-pin-form" class="login-box">
+          <div class="field" style="margin-top:18px">
+            <label for="portal-pin">PIN</label>
+            <input id="portal-pin" type="tel" inputmode="numeric" pattern="\\d{4}" maxlength="4"
+              autocomplete="off" required autofocus style="letter-spacing:0.5em;text-align:center;font-size:1.2rem" />
+          </div>
+          ${state.portalError ? `<div class="form-error">${esc(state.portalError)}</div>` : ''}
+          <button class="btn btn-primary" type="submit">Entrar</button>
+          <button class="btn btn-ghost" type="button" data-action="portal-voltar" style="margin-top:10px">‹ Não sou eu</button>
+        </form>
+      </div>`;
+  }
+
+  return `
+    <div class="center-screen">
+      <div class="eyebrow"><img class="eyebrow-logo" src="/assets/coin.png" alt="" />Alypay · Boletim Anti-Calote</div>
+      <div class="title" style="margin:2px 0 4px">Quem é você?</div>
+      <div style="color:var(--muted);font-size:0.86rem;max-width:280px;margin-bottom:22px">Clica na sua cara.</div>
+      <div class="portal-grid">
+        ${avatares.map((a) => `
+          <button class="portal-avatar-btn" data-action="portal-escolher" data-id="${a.id}">
+            <img src="${esc(a.avatar)}" alt="" />
+          </button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderError() {
+  return `
+    <div class="center-screen">
+      <div class="big-emoji">🕵️</div>
+      <div class="title" style="margin:0">Nada por aqui</div>
+      <div style="color:var(--muted);font-size:0.9rem;max-width:280px">${esc(state.errorMsg)}</div>
+    </div>`;
+}
+
+function renderAdminLogin() {
+  return `
+    <div class="center-screen">
+      <img class="login-logo" src="/assets/icon.jpg" alt="Alypay" />
+      <div class="title" style="margin:0 0 4px">Alypay Admin</div>
+      <div style="color:var(--muted);font-size:0.86rem">Só quem cobra entra aqui.</div>
+      <form id="login-form" class="login-box">
+        <div class="field" style="margin-top:18px">
+          <label for="pw">Senha</label>
+          <input id="pw" type="password" autocomplete="current-password" required autofocus />
+        </div>
+        ${state.loginError ? `<div class="form-error">${esc(state.loginError)}</div>` : ''}
+        <button class="btn btn-primary" type="submit">Entrar</button>
+      </form>
+    </div>`;
+}
+
+function unseenAtividadeCount() {
+  const { compras, pagamentos } = state.data;
+  const seen = state.activitySeenAt || '1970-01-01T00:00:00Z';
+  const itens = [...compras, ...pagamentos].filter((x) => x.origem === 'primo');
+  return itens.filter((x) => x.created_at > seen).length;
+}
+
+function renderAdmin() {
+  const { primos, compras, pagamentos } = state.data;
+  const cards = primos.map((p) => renderCard(
+    p,
+    aprovados(comprasDe(compras, p.id)),
+    aprovados(pagamentosDe(pagamentos, p.id)),
+    true
+  )).join('');
+
+  const unseen = unseenAtividadeCount();
+  const tabs = [
+    ['fatura', 'Fatura do mês'],
+    ['compra', 'Nova compra'],
+    ['pagamento', 'Pagamento'],
+    ['atividade', unseen > 0 ? `🔔 Atividade (${unseen})` : '🔔 Atividade'],
+    ['historico', 'Histórico'],
+  ].map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
+
+  let tabBody = '';
+  if (state.activeTab === 'fatura') tabBody = renderFaturaAdmin();
+  else if (state.activeTab === 'compra') tabBody = renderFormCompra();
+  else if (state.activeTab === 'pagamento') tabBody = renderFormPagamento();
+  else if (state.activeTab === 'atividade') tabBody = renderAtividadeAdmin();
+  else if (state.activeTab === 'historico') tabBody = renderHistoricoAdmin();
+
+  return `
+    <div class="eyebrow"><img class="eyebrow-logo" src="/assets/icon.jpg" alt="" />Alypay · Boletim Anti-Calote</div>
+    <div class="title">Painel admin</div>
+    ${cards}
+    <div class="toolbar">
+      <button class="btn btn-ghost" data-action="copy-resumo">📋 Copiar resumo p/ WhatsApp</button>
+      <button class="btn btn-ghost" data-action="export">💾 Exportar backup</button>
+      <button class="btn btn-ghost" data-action="import">📥 Importar backup</button>
+    </div>
+    <div class="tabs">${tabs}</div>
+    ${tabBody}
+    <div class="footer-note">admin · <a href="#" data-action="logout">sair</a></div>
+  `;
+}
+
+function comprasDe(compras, primoId) { return compras.filter((c) => c.primo_id === primoId); }
+function pagamentosDe(pagamentos, primoId) { return pagamentos.filter((p) => p.primo_id === primoId); }
+
+function renderCard(primo, compras, pagamentos, isAdmin) {
+  const hoje = mesAtual();
+  const saldo = saldoTotal(compras, pagamentos);
+  const { cartao, vencidoCartao, emprestadoBruto, emprestado } = splitCartaoEmprestimo(compras, pagamentos, hoje);
+  const pago = somaPagamentos(pagamentos);
+  const pct = pctQuitado(compras, pagamentos);
+  const st = statusPrimo(saldo);
+  const expanded = state.expandidos.has(primo.id);
+  const faturaLinhas = faturaDoMes(cartao, hoje);
+  const faturaMes = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
+  const mesNome = formatMes(hoje).split(' de ')[0];
+
+  const breakdown = expanded ? `
+    <div class="cc-breakdown">
+      <div class="cc-breakdown-item" style="font-weight:700">
+        <span class="desc">Saldo total</span>
+        <span class="val">${saldo < 0 ? formatBRL(Math.abs(saldo)) + ' de crédito' : formatBRL(saldo)}</span>
+      </div>
+      ${compras.length === 0
+        ? `<div class="cc-breakdown-empty">Nenhuma compra lançada ainda. Aproveite enquanto dura. 😌</div>`
+        : compras.map((c) => `
+            <div class="cc-breakdown-item">
+              <span class="desc">${esc(c.descricao)} · ${c.tipo === 'emprestimo' ? ('empréstimo' + (c.prazo ? ' · até ' + formatData(c.prazo) : ' · sem prazo')) : (isRecorrente(c) ? 'mensal' : c.parcelas + 'x')}</span>
+              <span class="val">${formatBRL(isRecorrente(c) ? totalAcumuladoAte(c, mesAtual()) : c.total)}</span>
+            </div>`).join('')
+      }
+    </div>` : '';
+
+  const [anoValido, mesValido] = hoje.split('-');
+
+  return `
+    <div class="cc">
+      <div class="cc-doodles"></div>
+      <div class="cc-brand-row">
+        <div class="cc-brand">
+          <img class="cc-logo" src="/assets/logo.png" alt="" />
+          <span class="cc-brand-text">
+            <span class="cc-wordmark">Alypay</span>
+            <span class="cc-brand-tagline">Cobrança sem stress, só diversão</span>
+          </span>
+        </div>
+        <div class="cc-network">${st.emoji}<small>${st.label}</small></div>
+      </div>
+      <div class="cc-balance-label">Fatura de ${mesNome}</div>
+      <div class="cc-balance ${expanded ? 'expanded' : ''}" data-action="toggle-breakdown" data-id="${primo.id}">
+        ${formatBRL(faturaMes)} <span class="chev">▾</span>
+      </div>
+      <div class="cc-details-row">
+        <div class="cc-name-row">
+          <div>
+            <span class="cc-field-label">Titular</span>
+            <div class="cc-name">${esc(primo.nome)}</div>
+          </div>
+          ${isAdmin ? `<button class="cc-edit-btn" data-action="rename-primo" data-id="${primo.id}" title="Editar nome">✎</button>` : ''}
+        </div>
+        <div class="cc-valid">
+          <span class="cc-field-label">Válido até</span>
+          <div class="cc-valid-value">${mesValido}/${anoValido.slice(2)}</div>
+        </div>
+        <img class="cc-coin" src="/assets/coin.png" alt="" />
+      </div>
+      <div class="cc-sub">
+        <div>Vencido<b>${formatBRL(vencidoCartao)}</b></div>
+        <div>Pago<b>${formatBRL(pago)}</b></div>
+        ${emprestadoBruto > 0 ? `<div>💸 Emprestado<b>${formatBRL(emprestado)}</b></div>` : ''}
+      </div>
+      <div class="cc-bar-track"><div class="cc-bar-fill" style="width:${pct}%"></div></div>
+      <div class="cc-pct">${pct}% quitado</div>
+      ${breakdown}
+      ${isAdmin ? `
+        <div class="cc-actions">
+          <button data-action="copy-link" data-id="${primo.id}">🔗 Copiar link</button>
+          <button data-action="regen-token" data-id="${primo.id}">♻️ Trocar link</button>
+          <button data-action="ver-pin" data-id="${primo.id}">🔢 PIN do portal</button>
+        </div>` : ''}
+    </div>`;
+}
+
+function renderMonthNav() {
+  return `
+    <div class="month-nav">
+      <button data-action="mes-prev">‹</button>
+      <div class="lbl">${formatMes(state.mes)}</div>
+      <div style="display:flex;gap:8px">
+        <button class="today-btn" data-action="mes-hoje">hoje</button>
+        <button data-action="mes-next">›</button>
+      </div>
+    </div>`;
+}
+
+function renderFaturaAdmin() {
+  const { primos, compras } = state.data;
+  const grupos = primos.map((primo) => {
+    const linhas = faturaDoMes(aprovados(comprasDe(compras, primo.id)), state.mes);
+    const subtotal = round2(linhas.reduce((s, l) => s + l.parcela.valor, 0));
+    return `
+      <div class="line-group">
+        <div class="line-group-title"><span>${esc(primo.nome)}</span><span>${formatBRL(subtotal)}</span></div>
+        ${linhas.length === 0
+          ? `<div class="empty" style="padding:14px 0">Nada vencendo esse mês. 🎉</div>`
+          : linhas.map((l) => `
+              <div class="line-item">
+                <div class="info">
+                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${parcelaBadge(l)}</span></div>
+                </div>
+                <div class="val">${formatBRL(l.parcela.valor)}</div>
+              </div>`).join('')
+        }
+      </div>`;
+  }).join('');
+
+  return `<div class="card">${renderMonthNav()}${grupos}</div>`;
+}
+
+function renderFormCompra() {
+  const { primos } = state.data;
+  return `
+    <div class="card">
+      <h3>Nova compra</h3>
+      <form id="compra-form">
+        <div class="field">
+          <label for="c-primo">Primo</label>
+          <select id="c-primo" required>
+            ${primos.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-tipo">Tipo</label>
+          <select id="c-tipo">
+            <option value="compra">🛒 Compra parcelada</option>
+            <option value="recorrente">🔁 Cobrança recorrente (assinatura, sem fim)</option>
+            <option value="emprestimo">💵 Empréstimo em dinheiro</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="c-desc">Descrição</label>
+          <input id="c-desc" type="text" placeholder="Ex: iPhone, tênis, adiantamento" required />
+        </div>
+        <div class="field">
+          <label for="c-total" id="c-total-label">Valor total (R$)</label>
+          <input id="c-total" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field" id="c-parcelas-field">
+          <label for="c-parcelas">Número de parcelas</label>
+          <input id="c-parcelas" type="number" min="1" max="24" value="1" required />
+        </div>
+        <div class="field">
+          <label for="c-mes" id="c-mes-label">Mês da 1ª parcela</label>
+          <input id="c-mes" type="month" value="${mesAtual()}" required />
+        </div>
+        <div class="field" id="c-prazo-field" hidden>
+          <label for="c-prazo">Prazo pra devolver</label>
+          <input id="c-prazo" type="date" disabled />
+          <div style="display:flex;align-items:center;gap:8px;margin-top:8px">
+            <input id="c-prazo-indefinido" type="checkbox" style="width:auto" checked />
+            <label for="c-prazo-indefinido" style="margin:0">Prazo a definir</label>
+          </div>
+        </div>
+        <div class="preview-line" id="c-preview">Preencha valor e parcelas pra ver o preview.</div>
+        <div class="form-error" id="c-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Lançar</button>
+      </form>
+    </div>`;
+}
+
+function renderAtividadeAdmin() {
+  const { primos, compras, pagamentos } = state.data;
+  const nomeDe = (id) => (primos.find((p) => p.id === id) || {}).nome || '?';
+
+  const itens = [
+    ...compras.filter((c) => c.origem === 'primo').map((c) => ({ tipo: 'compra', item: c })),
+    ...pagamentos.filter((p) => p.origem === 'primo').map((p) => ({ tipo: 'pagamento', item: p })),
+  ].sort((a, b) => (a.item.created_at < b.item.created_at ? 1 : -1));
+
+  if (itens.length === 0) {
+    return `<div class="card"><div class="empty"><div class="big">🦗</div>Nenhum lançamento dos primos ainda.</div></div>`;
+  }
+
+  const linhas = itens.map(({ tipo, item }) => {
+    const contestado = item.status === 'rejeitado';
+    const badgeContestado = contestado
+      ? ` <span class="badge-parc" style="color:var(--danger);border-color:var(--danger)">🚩 contestado</span>`
+      : '';
+    const acao = contestado
+      ? `<button class="del" style="color:var(--ok)" data-action="restaurar-${tipo}" data-id="${item.id}">↩️ restaurar</button>`
+      : `<button class="del" data-action="contestar-${tipo}" data-id="${item.id}">🚩 contestar</button>`;
+
+    if (tipo === 'compra') {
+      const c = item;
+      return `
+        <div class="line-item">
+          <div class="info">
+            <div class="desc">🛍️ ${esc(c.descricao)} <span class="badge-parc">${esc(nomeDe(c.primo_id))}</span>${badgeContestado}</div>
+            <div class="meta">${c.parcelas ? `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}` : `${formatBRL(c.total)}/mês`} · desde ${formatMes(c.inicio_mes)}</div>
+          </div>
+          <div style="display:flex;gap:6px;flex-shrink:0">${acao}</div>
+        </div>`;
+    }
+    const p = item;
+    return `
+      <div class="line-item">
+        <div class="info">
+          <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} <span class="badge-parc">${esc(nomeDe(p.primo_id))}</span>${badgeContestado}</div>
+          <div class="meta">${p.data} · ${formatBRL(p.valor)}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-shrink:0">${acao}</div>
+      </div>`;
+  }).join('');
+
+  return `<div class="card"><h3>Lançamentos dos primos</h3>${linhas}</div>`;
+}
+
+function renderFormPagamento() {
+  const { primos } = state.data;
+  return `
+    <div class="card">
+      <h3>Registrar pagamento</h3>
+      <form id="pagamento-form">
+        <div class="field">
+          <label for="p-primo">Primo</label>
+          <select id="p-primo" required>
+            ${primos.map((p) => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field">
+          <label for="p-valor">Valor (R$)</label>
+          <input id="p-valor" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field">
+          <label for="p-nota">Nota (opcional)</label>
+          <input id="p-nota" type="text" placeholder="Ex: Pix de hoje" />
+        </div>
+        <div class="form-error" id="p-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Registrar pagamento</button>
+      </form>
+    </div>`;
+}
+
+function renderAdicionarPrimo() {
+  return `
+    <div class="card">
+      <h3>Nova compra</h3>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Já entra na conta na hora. O Alysson vê e pode contestar se algo estiver errado.</div>
+      <form id="primo-compra-form">
+        <div class="field">
+          <label for="pc-desc">Descrição</label>
+          <input id="pc-desc" type="text" placeholder="Ex: tênis, rodada no bar" required />
+        </div>
+        <div class="field">
+          <label for="pc-total">Valor total (R$)</label>
+          <input id="pc-total" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field">
+          <label for="pc-parcelas">Número de parcelas</label>
+          <input id="pc-parcelas" type="number" min="1" max="24" value="1" required />
+        </div>
+        <div class="field">
+          <label for="pc-mes">Mês da 1ª parcela</label>
+          <input id="pc-mes" type="month" value="${mesAtual()}" required />
+        </div>
+        <div class="form-error" id="pc-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Enviar pra aprovação</button>
+      </form>
+    </div>
+    <div class="card">
+      <h3>Registrar pagamento</h3>
+      <div style="color:var(--muted);font-size:0.82rem;margin:-6px 0 14px">Também já entra na conta na hora.</div>
+      <form id="primo-pagamento-form">
+        <div class="field">
+          <label for="pp-valor">Valor (R$)</label>
+          <input id="pp-valor" type="number" step="0.01" min="0.01" placeholder="0,00" required />
+        </div>
+        <div class="field">
+          <label for="pp-nota">Nota (opcional)</label>
+          <input id="pp-nota" type="text" placeholder="Ex: Pix de hoje" />
+        </div>
+        <div class="form-error" id="pp-error" hidden></div>
+        <button class="btn btn-primary" type="submit">Enviar pra aprovação</button>
+      </form>
+    </div>`;
+}
+
+function renderHistoricoAdmin() {
+  const { primos, compras, pagamentos } = state.data;
+  const grupos = primos.map((primo) => renderHistoricoDe(primo, comprasDe(compras, primo.id), pagamentosDe(pagamentos, primo.id), true)).join('');
+  return grupos;
+}
+
+function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
+  const itens = [
+    ...compras.map((c) => ({ tipo: 'compra', data: c.inicio_mes + '-01', item: c })),
+    ...pagamentos.map((p) => ({ tipo: 'pagamento', data: p.data, item: p })),
+  ].sort((a, b) => (a.data < b.data ? 1 : -1));
+
+  const statusBadge = (item) => {
+    if (item.status === 'pendente') return `<span class="badge-parc" style="color:var(--acc-c);border-color:var(--acc-c)">⏳ pendente</span>`;
+    if (item.status === 'rejeitado') return `<span class="badge-parc" style="color:var(--danger);border-color:var(--danger)">❌ recusado</span>`;
+    return '';
+  };
+
+  return `
+    <div class="card">
+      <h3>${esc(primo.nome)}</h3>
+      ${itens.length === 0 ? `<div class="empty"><div class="big">🦗</div>Nenhum registro ainda.</div>` : itens.map((it) => {
+        if (it.tipo === 'compra') {
+          const c = it.item;
+          const isEmprestimo = c.tipo === 'emprestimo';
+          const meta = isEmprestimo
+            ? `Empréstimo · ${c.prazo ? 'prazo ' + formatData(c.prazo) : 'prazo a definir'}`
+            : (isRecorrente(c) ? `${formatBRL(c.total)}/mês (eterno)` : `${c.parcelas}x de ${formatBRL(parcelaValor(c, 0))}`);
+          return `
+            <div class="line-item">
+              <div class="info">
+                <div class="desc">${isEmprestimo ? '💵' : '🛍️'} ${esc(c.descricao)} ${statusBadge(c)}</div>
+                <div class="meta">${meta} · desde ${formatMes(c.inicio_mes)}</div>
+              </div>
+              <div class="val">${isRecorrente(c) ? formatBRL(totalAcumuladoAte(c, mesAtual())) + ' até agora' : formatBRL(c.total)}</div>
+              ${isAdmin ? `<button class="del" data-action="del-compra" data-id="${c.id}">excluir</button>` : ''}
+            </div>`;
+        }
+        const p = it.item;
+        return `
+          <div class="line-item">
+            <div class="info">
+              <div class="desc">💸 Pagamento${p.nota ? ' — ' + esc(p.nota) : ''} ${statusBadge(p)}</div>
+              <div class="meta">${p.data}</div>
+            </div>
+            <div class="val" style="color:var(--ok)">${formatBRL(p.valor)}</div>
+            ${isAdmin ? `<button class="del" data-action="del-pagamento" data-id="${p.id}">excluir</button>` : ''}
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function renderPrimoView() {
+  const { primo, compras, pagamentos } = state.data;
+  const st = statusPrimo(saldoTotal(aprovados(compras), aprovados(pagamentos)));
+  const mascote = `
+    <div class="mascot-row">
+      <img class="mascot-avatar" src="${avatarPrimo(primo.id)}" alt="" />
+      <div class="mascot-bubble">${esc(st.quip)}</div>
+    </div>`;
+  const card = renderCard(primo, aprovados(compras), aprovados(pagamentos), false);
+  const tabs = [['fatura', 'Fatura do mês'], ['historico', 'Histórico'], ['adicionar', '+ Adicionar']]
+    .map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
+
+  let body = '';
+  if (state.activeTab === 'historico') {
+    body = renderHistoricoDe(primo, compras, pagamentos, false);
+  } else if (state.activeTab === 'adicionar') {
+    body = renderAdicionarPrimo();
+  } else {
+    const linhas = faturaDoMes(aprovados(compras), state.mes);
+    const subtotal = round2(linhas.reduce((s, l) => s + l.parcela.valor, 0));
+    body = `
+      <div class="card">
+        ${renderMonthNav()}
+        <div class="line-group-title"><span>Parcelas do mês</span><span>${formatBRL(subtotal)}</span></div>
+        ${linhas.length === 0
+          ? `<div class="empty"><div class="big">🎉</div>Nada vencendo esse mês. Respira.</div>`
+          : linhas.map((l) => `
+              <div class="line-item">
+                <div class="info">
+                  <div class="desc">${esc(l.compra.descricao)} <span class="badge-parc">${parcelaBadge(l)}</span></div>
+                </div>
+                <div class="val">${formatBRL(l.parcela.valor)}</div>
+              </div>`).join('')
+        }
+      </div>`;
+  }
+
+  return `
+    <div class="eyebrow"><img class="eyebrow-logo" src="/assets/icon.jpg" alt="" />Alypay · Boletim Anti-Calote</div>
+    <div class="title">Oi, ${esc(primo.nome.split(' ')[0])}</div>
+    ${mascote}
+    ${card}
+    <div class="tabs">${tabs}</div>
+    ${body}
+    <div class="footer-note">dá pra adicionar compra/pagamento — o resto só quem manda edita 😇</div>
+  `;
+}
+
+/* ============================== ações ============================== */
+function showToast(msg) { state.toast = msg; render(); }
+
+async function handleAdminAction(action, target) {
+  const pw = state.adminPassword;
+  try {
+    if (action === 'tab') {
+      state.activeTab = target.dataset.tab;
+      if (target.dataset.tab === 'atividade') {
+        state.activitySeenAt = new Date().toISOString();
+        localStorage.setItem('alypay_activity_seen_at', state.activitySeenAt);
+      }
+      render();
+    } else if (action === 'mes-prev') {
+      state.mes = somaMes(state.mes, -1); render();
+    } else if (action === 'mes-next') {
+      state.mes = somaMes(state.mes, 1); render();
+    } else if (action === 'mes-hoje') {
+      state.mes = mesAtual(); render();
+    } else if (action === 'toggle-breakdown') {
+      const id = target.dataset.id;
+      state.expandidos.has(id) ? state.expandidos.delete(id) : state.expandidos.add(id);
+      render();
+    } else if (action === 'rename-primo') {
+      const id = target.dataset.id;
+      const primo = state.data.primos.find((p) => p.id === id);
+      const novo = prompt('Novo nome:', primo.nome);
+      if (novo && novo.trim() && novo.trim() !== primo.nome) {
+        await API.updatePrimo(pw, id, { nome: novo.trim() });
+        state.data = await API.adminData(pw);
+        showToast('Nome atualizado.');
+      }
+    } else if (action === 'regen-token') {
+      const id = target.dataset.id;
+      if (confirm('Isso derruba o link antigo desse primo na hora. Continuar?')) {
+        await API.updatePrimo(pw, id, { regenerar_token: true });
+        state.data = await API.adminData(pw);
+        showToast('Link renovado.');
+      }
+    } else if (action === 'copy-link') {
+      const id = target.dataset.id;
+      const primo = state.data.primos.find((p) => p.id === id);
+      const url = `${location.origin}/?t=${primo.token_acesso}`;
+      await navigator.clipboard.writeText(url);
+      showToast('Link copiado.');
+    } else if (action === 'ver-pin') {
+      const id = target.dataset.id;
+      let primo = state.data.primos.find((p) => p.id === id);
+      if (!primo.pin_acesso) {
+        await API.updatePrimo(pw, id, { gerar_pin: true });
+        state.data = await API.adminData(pw);
+        primo = state.data.primos.find((p) => p.id === id);
+      }
+      await navigator.clipboard.writeText(primo.pin_acesso);
+      showToast(`PIN de ${primo.nome}: ${primo.pin_acesso} (copiado)`);
+    } else if (action === 'copy-resumo') {
+      await copiarResumoWhatsapp();
+    } else if (action === 'export') {
+      exportarBackup();
+    } else if (action === 'import') {
+      importarBackup();
+    } else if (action === 'del-compra') {
+      if (confirm('Excluir essa compra? Não dá pra desfazer.')) {
+        await API.deleteCompra(pw, target.dataset.id);
+        state.data = await API.adminData(pw);
+        showToast('Compra excluída.');
+      }
+    } else if (action === 'del-pagamento') {
+      if (confirm('Excluir esse pagamento? Não dá pra desfazer.')) {
+        await API.deletePagamento(pw, target.dataset.id);
+        state.data = await API.adminData(pw);
+        showToast('Pagamento excluído.');
+      }
+    } else if (action === 'contestar-compra') {
+      if (confirm('Contestar essa compra? Ela sai da conta até você decidir, mas o registro continua salvo.')) {
+        await API.patchCompraStatus(pw, target.dataset.id, 'rejeitado');
+        state.data = await API.adminData(pw);
+        showToast('Compra contestada.');
+      }
+    } else if (action === 'restaurar-compra') {
+      await API.patchCompraStatus(pw, target.dataset.id, 'aprovado');
+      state.data = await API.adminData(pw);
+      showToast('Compra restaurada.');
+    } else if (action === 'contestar-pagamento') {
+      if (confirm('Contestar esse pagamento? Ele sai da conta até você decidir, mas o registro continua salvo.')) {
+        await API.patchPagamentoStatus(pw, target.dataset.id, 'rejeitado');
+        state.data = await API.adminData(pw);
+        showToast('Pagamento contestado.');
+      }
+    } else if (action === 'restaurar-pagamento') {
+      await API.patchPagamentoStatus(pw, target.dataset.id, 'aprovado');
+      state.data = await API.adminData(pw);
+      showToast('Pagamento restaurado.');
+    } else if (action === 'logout') {
+      sessionStorage.removeItem('alypay_admin_pw');
+      location.reload();
+    }
+  } catch (err) {
+    showToast(err.message || 'Deu ruim.');
+  }
+}
+
+function handlePrimoAction(action, target) {
+  if (action === 'tab') { state.activeTab = target.dataset.tab; render(); }
+  else if (action === 'mes-prev') { state.mes = somaMes(state.mes, -1); render(); }
+  else if (action === 'mes-next') { state.mes = somaMes(state.mes, 1); render(); }
+  else if (action === 'mes-hoje') { state.mes = mesAtual(); render(); }
+  else if (action === 'toggle-breakdown') {
+    const id = target.dataset.id;
+    state.expandidos.has(id) ? state.expandidos.delete(id) : state.expandidos.add(id);
+    render();
+  }
+}
+
+async function copiarResumoWhatsapp() {
+  const { primos, compras } = state.data;
+  const linhas = [`*Boletim Anti-Calote — ${formatMes(state.mes)}*`, ''];
+  for (const primo of primos) {
+    const faturaLinhas = faturaDoMes(aprovados(comprasDe(compras, primo.id)), state.mes);
+    const subtotal = round2(faturaLinhas.reduce((s, l) => s + l.parcela.valor, 0));
+    const saldo = saldoTotal(aprovados(comprasDe(compras, primo.id)), aprovados(pagamentosDe(state.data.pagamentos, primo.id)));
+    linhas.push(`*${primo.nome}* — saldo total ${formatBRL(saldo)}`);
+    if (faturaLinhas.length === 0) {
+      linhas.push('  nada vencendo esse mês');
+    } else {
+      for (const l of faturaLinhas) {
+        linhas.push(`  • ${l.compra.descricao} (${parcelaBadge(l)}): ${formatBRL(l.parcela.valor)}`);
+      }
+      linhas.push(`  subtotal do mês: ${formatBRL(subtotal)}`);
+    }
+    linhas.push('');
+  }
+  await navigator.clipboard.writeText(linhas.join('\n'));
+  showToast('Resumo copiado — cola no WhatsApp.');
+}
+
+function exportarBackup() {
+  const blob = new Blob([JSON.stringify(state.data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `alypay-backup-${mesAtual()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importarBackup() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      if (!confirm('Isso vai sobrescrever registros com o mesmo ID. Continuar?')) return;
+      await API.importBackup(state.adminPassword, payload);
+      state.data = await API.adminData(state.adminPassword);
+      showToast('Backup importado.');
+      render();
+    } catch (err) {
+      showToast('Backup inválido: ' + err.message);
+    }
+  };
+  input.click();
+}
+
+/* ============================== listeners globais ============================== */
+document.addEventListener('click', (e) => {
+  const target = e.target.closest('[data-action]');
+  if (!target) return;
+  const action = target.dataset.action;
+  if (state.route === 'admin') handleAdminAction(action, target);
+  else if (state.route === 'primo') handlePrimoAction(action, target);
+  else if (state.route === 'portal') {
+    if (action === 'portal-escolher') {
+      state.portalSelecionado = target.dataset.id;
+      state.portalError = '';
+      render();
+    } else if (action === 'portal-voltar') {
+      state.portalSelecionado = null;
+      state.portalError = '';
+      render();
+    }
+  }
+});
+
+document.addEventListener('submit', async (e) => {
+  if (e.target.id === 'portal-pin-form') {
+    e.preventDefault();
+    const pin = document.getElementById('portal-pin').value;
+    try {
+      const token = await API.portalEntrar(state.portalSelecionado, pin);
+      location.href = `/?t=${encodeURIComponent(token)}`;
+    } catch (err) {
+      state.portalError = err.message;
+      render();
+    }
+  } else if (e.target.id === 'login-form') {
+    e.preventDefault();
+    const pw = document.getElementById('pw').value;
+    const ok = await API.adminLogin(pw);
+    if (!ok) {
+      state.loginError = 'Senha errada. Tenta de novo.';
+      render();
+      return;
+    }
+    state.adminPassword = pw;
+    sessionStorage.setItem('alypay_admin_pw', pw);
+    try {
+      state.data = await API.adminData(pw);
+      state.route = 'admin';
+      render();
+    } catch (err) {
+      state.loginError = err.message;
+      render();
+    }
+  } else if (e.target.id === 'compra-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('c-error');
+    errEl.hidden = true;
+    try {
+      const tipoSel = document.getElementById('c-tipo').value;
+      const recorrente = tipoSel === 'recorrente';
+      const emprestimo = tipoSel === 'emprestimo';
+      const prazoIndef = document.getElementById('c-prazo-indefinido').checked;
+      const prazoVal = document.getElementById('c-prazo').value;
+      await API.createCompra(state.adminPassword, {
+        primo_id: document.getElementById('c-primo').value,
+        descricao: document.getElementById('c-desc').value,
+        total: document.getElementById('c-total').value,
+        parcelas: (recorrente || emprestimo) ? null : Number(document.getElementById('c-parcelas').value),
+        inicio_mes: document.getElementById('c-mes').value,
+        recorrente,
+        tipo: emprestimo ? 'emprestimo' : 'compra',
+        prazo: emprestimo && !prazoIndef && prazoVal ? prazoVal : null,
+      });
+      state.data = await API.adminData(state.adminPassword);
+      showToast('Lançado.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  } else if (e.target.id === 'pagamento-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('p-error');
+    errEl.hidden = true;
+    try {
+      await API.createPagamento(state.adminPassword, {
+        primo_id: document.getElementById('p-primo').value,
+        valor: document.getElementById('p-valor').value,
+        nota: document.getElementById('p-nota').value,
+      });
+      state.data = await API.adminData(state.adminPassword);
+      showToast('Pagamento registrado.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  } else if (e.target.id === 'primo-compra-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('pc-error');
+    errEl.hidden = true;
+    try {
+      await API.createCompraPrimo(state.token, {
+        descricao: document.getElementById('pc-desc').value,
+        total: document.getElementById('pc-total').value,
+        parcelas: Number(document.getElementById('pc-parcelas').value),
+        inicio_mes: document.getElementById('pc-mes').value,
+      });
+      state.data = await API.primo(state.token);
+      state.activeTab = 'historico';
+      showToast('Lançado! Já contabilizado.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  } else if (e.target.id === 'primo-pagamento-form') {
+    e.preventDefault();
+    const errEl = document.getElementById('pp-error');
+    errEl.hidden = true;
+    try {
+      await API.createPagamentoPrimo(state.token, {
+        valor: document.getElementById('pp-valor').value,
+        nota: document.getElementById('pp-nota').value,
+      });
+      state.data = await API.primo(state.token);
+      state.activeTab = 'historico';
+      showToast('Lançado! Já contabilizado.');
+      render();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.hidden = false;
+    }
+  }
+});
+
+function updateCompraPreview() {
+  const tipoEl = document.getElementById('c-tipo');
+  if (!tipoEl) return;
+  const tipo = tipoEl.value; // 'compra' | 'recorrente' | 'emprestimo'
+  const total = Number(document.getElementById('c-total').value);
+  const parcelas = Number(document.getElementById('c-parcelas').value) || 1;
+  const preview = document.getElementById('c-preview');
+  const parcelasField = document.getElementById('c-parcelas-field');
+  const prazoField = document.getElementById('c-prazo-field');
+  const prazoInput = document.getElementById('c-prazo');
+  const prazoIndef = document.getElementById('c-prazo-indefinido');
+  const totalLabel = document.getElementById('c-total-label');
+  const mesLabel = document.getElementById('c-mes-label');
+
+  parcelasField.hidden = tipo !== 'compra';
+  document.getElementById('c-parcelas').required = tipo === 'compra';
+  prazoField.hidden = tipo !== 'emprestimo';
+  prazoInput.disabled = prazoIndef.checked;
+  if (prazoIndef.checked) prazoInput.value = '';
+
+  totalLabel.textContent = tipo === 'recorrente' ? 'Valor mensal (R$)' : tipo === 'emprestimo' ? 'Valor emprestado (R$)' : 'Valor total (R$)';
+  mesLabel.textContent = tipo === 'compra' ? 'Mês da 1ª parcela' : tipo === 'emprestimo' ? 'Mês do empréstimo' : 'Mês de início';
+
+  if (total > 0) {
+    if (tipo === 'recorrente') {
+      preview.textContent = `${formatBRL(total)} por mês, sem data de fim`;
+    } else if (tipo === 'emprestimo') {
+      const prazoTxt = prazoIndef.checked || !prazoInput.value ? 'prazo a definir' : `prazo ${formatData(prazoInput.value)}`;
+      preview.textContent = `Empréstimo de ${formatBRL(total)} — ${prazoTxt}`;
+    } else {
+      preview.textContent = `${parcelas}x de ${formatBRL(total / parcelas)} (total ${formatBRL(total)})`;
+    }
+  } else {
+    preview.textContent = 'Preencha o valor pra ver o preview.';
+  }
+}
+
+document.addEventListener('input', (e) => {
+  if (['c-total', 'c-parcelas', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
+});
+document.addEventListener('change', (e) => {
+  if (['c-tipo', 'c-prazo-indefinido', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
+});
+
+boot();
+</script>
+</body>
+</html>
