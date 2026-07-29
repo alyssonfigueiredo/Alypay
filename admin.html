@@ -276,23 +276,6 @@
   }
 
   .footer-note { text-align: center; font-size: 0.72rem; color: var(--muted); margin-top: 26px; }
-
-  /* ---------- gastos pessoais ---------- */
-  .gasto-alerta {
-    background: rgba(255,45,120,0.1); border: 1px solid rgba(255,45,120,0.35);
-    border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 0.84rem;
-  }
-  .gasto-row { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-  .gasto-row:last-child { border-bottom: none; }
-  .gasto-row .info { flex: 1 1 220px; min-width: 0; }
-  .gasto-row .info input[type="text"] { width: 100%; padding: 6px 8px; font-size: 0.85rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
-  .gasto-row .info .meta { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
-  .gasto-row input[type="date"], .gasto-row input[type="number"] { padding: 6px 8px; font-size: 0.82rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
-  .gasto-row input[type="number"] { width: 90px; }
-  .gasto-row select { width: auto; padding: 6px 8px; font-size: 0.78rem; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); }
-  .gasto-resumo-total { font-size: 1.4rem; font-weight: 700; margin-bottom: 10px; }
-  .gasto-resumo-cat { display: flex; justify-content: space-between; font-size: 0.86rem; padding: 6px 0; border-bottom: 1px solid var(--border); }
-  .gasto-resumo-cat:last-child { border-bottom: none; }
 </style>
 </head>
 <body>
@@ -316,12 +299,6 @@ const state = {
   portalSelecionado: null,
   portalError: '',
   pix: null,              // {disponivel, tipo, nome, codigo} carregado na tela do primo
-  gastosMes: mesAtual(),
-  gastosResumo: null,          // {mes, total, porCategoria, quantidade, lancamentos} do gastosMes
-  gastosPreview: null,         // linhas parseadas aguardando confirmação: [{data, descricao, valor, origem}]
-  gastosTextoExtrato: '',
-  gastosTextoFatura: '',
-  gastosAvisoMesAtual: null,   // resumo do mês corrente carregado no boot, só pro aviso de "ainda não importou"
 };
 
 /* ============================== lógica pura ============================== */
@@ -640,36 +617,6 @@ const API = {
     if (!res.ok) throw new Error(body.error || 'Erro ao importar backup.');
     return body;
   },
-  async gastosResumo(password, mes) {
-    const res = await fetch(`/api/admin/gastos/resumo?mes=${mes}`, { headers: { 'X-Admin-Password': password } });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Erro ao carregar resumo.');
-    return body;
-  },
-  async gastosImportar(password, lancamentos) {
-    const res = await fetch('/api/admin/gastos/importar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-      body: JSON.stringify({ lancamentos }),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Erro ao importar.');
-    return body;
-  },
-  async gastosPatch(password, id, patch) {
-    const res = await fetch(`/api/admin/gastos/lancamento/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json', 'X-Admin-Password': password },
-      body: JSON.stringify(patch),
-    });
-    const body = await res.json();
-    if (!res.ok) throw new Error(body.error || 'Erro ao atualizar.');
-    return body;
-  },
-  async gastosExcluir(password, id) {
-    const res = await fetch(`/api/admin/gastos/lancamento/${id}`, { method: 'DELETE', headers: { 'X-Admin-Password': password } });
-    if (!res.ok) throw new Error('Erro ao excluir.');
-  },
 };
 
 /* ============================== boot / roteamento ============================== */
@@ -682,8 +629,6 @@ async function boot() {
       try {
         state.data = await API.adminData(state.adminPassword);
         state.route = 'admin';
-        try { state.gastosAvisoMesAtual = await API.gastosResumo(state.adminPassword, mesAtual()); } catch { state.gastosAvisoMesAtual = null; }
-        state.gastosResumo = state.gastosAvisoMesAtual;
       } catch {
         sessionStorage.removeItem('alypay_admin_pw');
         state.adminPassword = '';
@@ -841,7 +786,6 @@ function renderAdmin() {
     ['pagamento', 'Pagamento'],
     ['atividade', unseen > 0 ? `🔔 Atividade (${unseen})` : '🔔 Atividade'],
     ['historico', 'Histórico'],
-    ['gastos', '💳 Gastos'],
   ].map(([key, label]) => `<div class="tab ${state.activeTab === key ? 'active' : ''}" data-action="tab" data-tab="${key}">${label}</div>`).join('');
 
   let tabBody = '';
@@ -850,16 +794,10 @@ function renderAdmin() {
   else if (state.activeTab === 'pagamento') tabBody = renderFormPagamento();
   else if (state.activeTab === 'atividade') tabBody = renderAtividadeAdmin();
   else if (state.activeTab === 'historico') tabBody = renderHistoricoAdmin();
-  else if (state.activeTab === 'gastos') tabBody = renderGastosAdmin();
-
-  const avisoGastos = state.gastosAvisoMesAtual && state.gastosAvisoMesAtual.quantidade === 0
-    ? `<div class="gasto-alerta">📋 Você ainda não importou o extrato/fatura de <b>${formatMes(mesAtual())}</b>. <a href="#" data-action="tab" data-tab="gastos">Importar agora</a>.</div>`
-    : '';
 
   return `
     <div class="eyebrow"><img class="eyebrow-logo" src="/assets/icon.jpg" alt="" />Alypay · Boletim Anti-Calote</div>
     <div class="title">Painel admin</div>
-    ${avisoGastos}
     ${cards}
     <div class="toolbar">
       <button class="btn btn-ghost" data-action="copy-resumo">📋 Copiar resumo p/ WhatsApp</button>
@@ -1208,211 +1146,6 @@ function renderHistoricoDe(primo, compras, pagamentos, isAdmin) {
     </div>`;
 }
 
-/* ============================== gastos pessoais (extrato/fatura C6) ============================== */
-
-const MESES_PT = { jan: 1, fev: 2, mar: 3, abr: 4, mai: 5, jun: 6, jul: 7, ago: 8, set: 9, out: 10, nov: 11, dez: 12 };
-const CATEGORIAS = ['alimentacao', 'transporte', 'moradia', 'lazer', 'saude', 'central', 'outros'];
-const CATEGORIA_LABEL = { alimentacao: 'Alimentação', transporte: 'Transporte', moradia: 'Moradia', lazer: 'Lazer', saude: 'Saúde', central: 'Central', outros: 'Outros' };
-const CATEGORIA_PALAVRAS = {
-  alimentacao: ['ifd', 'restaurante', 'padaria', 'lanchonete', 'marmita', 'ze delivery', 'burger', 'pizza', 'acai', 'cafe'],
-  transporte: ['uber', 'uberrides', '99app', 'posto', 'petro', 'pedagio', 'combustivel', 'estacionamento'],
-  saude: ['farmacia', 'drogaria', 'clinica', 'hospital', 'laboratorio', 'nissei'],
-  moradia: ['energia', 'sanepar', 'copel', 'condominio', 'aluguel', 'imobiliaria', 'internet'],
-  lazer: ['netflix', 'spotify', 'cinema', 'ingresso', 'airbnb', 'livelo', 'smiles', 'academia'],
-};
-// Categoria que o pr\u00f3prio C6 j\u00e1 manda na fatura \u2014 sinal mais confi\u00e1vel do
-// que tentar adivinhar s\u00f3 pelo nome do estabelecimento.
-const CATEGORIA_BANCO_PALAVRAS = {
-  alimentacao: ['supermercado', 'mercearia', 'padaria', 'restaurante', 'conveniencia', 'bar e restaurante'],
-  transporte: ['automotivo', 'combustivel', 'posto de servico', 'estacionamento', 'transporte'],
-  saude: ['medica', 'odontologica', 'farmacia', 'drogaria', 'saude', 'hospital'],
-  moradia: ['moradia', 'condominio', 'utilidade publica', 'imobiliaria'],
-  lazer: ['lazer', 'entretenimento', 'viagem', 'hospedagem', 'passagem aerea'],
-};
-
-function normalizarTexto(s) {
-  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ');
-}
-
-function sugerirCategoria(descricao, valor, isPix, categoriaBanco) {
-  if (isPix && Number(valor) === 60) return 'central';
-  const tBanco = normalizarTexto(categoriaBanco);
-  for (const [cat, palavras] of Object.entries(CATEGORIA_BANCO_PALAVRAS)) {
-    if (palavras.some((p) => tBanco.includes(p))) return cat;
-  }
-  const t = normalizarTexto(descricao);
-  for (const [cat, palavras] of Object.entries(CATEGORIA_PALAVRAS)) {
-    if (palavras.some((p) => t.includes(p))) return cat;
-  }
-  return 'outros';
-}
-
-// Extrato C6: linhas "DD/MM   DD/MM   Tipo   Descrição   [-]R$ valor",
-// dentro de seções por mês ("Junho 2026 ( ... )") — o ano só aparece no
-// cabeçalho da seção, não na linha da transação.
-const LINHA_SECAO_EXTRATO_RE = /^\s*[A-Za-zçÇ]+\s+(\d{4})\s*\(/;
-const LINHA_TX_EXTRATO_RE = /^\s*(\d{2}\/\d{2})\s+\d{2}\/\d{2}\s+(Saída PIX|Entrada PIX|Entradas|Outros gastos|Pagamento)\s+(.+?)\s{2,}(-?)R\$\s?([\d.]+,\d{2})\s*$/;
-
-function parseExtratoC6(texto) {
-  let ano = new Date().getFullYear();
-  const linhas = [];
-  for (const raw of (texto || '').split('\n')) {
-    const secao = raw.match(LINHA_SECAO_EXTRATO_RE);
-    if (secao) { ano = Number(secao[1]); continue; }
-    const m = raw.match(LINHA_TX_EXTRATO_RE);
-    if (!m) continue;
-    const [, dataMD, tipo, descricaoRaw, sinal, valorTxt] = m;
-    if (sinal !== '-') continue; // só saída é candidata a gasto — entrada nunca é
-    const descricao = descricaoRaw.trim();
-    if (/fat\s*cart/i.test(descricao)) continue;      // pagamento da própria fatura — já entra pela fatura
-    if (/compra de ativo/i.test(descricao)) continue; // movimentação de investimento, não é consumo
-    const [dd, mm] = dataMD.split('/');
-    linhas.push({
-      data: `${ano}-${mm}-${dd}`,
-      descricao,
-      valor: Number(valorTxt.replace(/\./g, '').replace(',', '.')),
-      origem: 'extrato',
-      pix: tipo === 'Saída PIX', // só PIX de fato entra na regra "R$60 -> Central", não qualquer gasto de 60
-    });
-  }
-  return linhas;
-}
-
-// Fatura C6 (extrato detalhado, colunas separadas por tab): "DD/MM/AAAA
-// \t Titular \t últimos4 \t Categoria do banco \t Estabelecimento \t
-// Parcela (N/M ou "Única") \t 0 \t 0 \t valor". O valor vem com ponto
-// decimal (ex: 1165.52) — nada a ver com o "R$ 1.234,56" do extrato da
-// conta corrente, por isso um parser de valor à parte.
-function parseValorFatura(txt) {
-  const t = (txt || '').trim();
-  if (t.includes(',')) return Number(t.replace(/\./g, '').replace(',', '.'));
-  return Number(t);
-}
-
-function parseFaturaC6(texto) {
-  const linhas = [];
-  for (const raw of (texto || '').split('\n')) {
-    const cols = raw.split('\t').map((c) => c.trim());
-    if (cols.length < 9) continue;
-    const dataM = cols[0].match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (!dataM) continue;
-    const [, diaTxt, mesTxt, anoTxt] = dataM;
-    const categoriaBanco = cols[3];
-    const estabelecimento = cols[4];
-    const parcela = cols[5];
-    const valor = parseValorFatura(cols[8]);
-    if (!(valor > 0)) continue;
-    if (/estorno/i.test(categoriaBanco) || /estorno/i.test(estabelecimento) || /inclusao de pagamento/i.test(estabelecimento)) continue; // crédito, não é gasto
-    const parcelaLower = parcela.toLowerCase();
-    const descricao = estabelecimento + (parcelaLower && parcelaLower !== 'unica' && parcelaLower !== 'única' ? ` (${parcela})` : '');
-    linhas.push({
-      data: `${anoTxt}-${mesTxt.padStart(2, '0')}-${diaTxt.padStart(2, '0')}`,
-      descricao,
-      valor,
-      origem: 'fatura',
-      categoriaBanco,
-    });
-  }
-  return linhas;
-}
-
-function renderGastosAdmin() {
-  const resumo = state.gastosResumo;
-  const preview = state.gastosPreview;
-
-  const nav = `
-    <div class="month-nav">
-      <button data-action="gastos-mes-prev">‹</button>
-      <span class="lbl">${formatMes(state.gastosMes)}</span>
-      <button data-action="gastos-mes-next">›</button>
-    </div>`;
-
-  const resumoBox = resumo ? `
-    <div class="card">
-      <h3>Gasto líquido do mês</h3>
-      ${nav}
-      <div class="gasto-resumo-total">${formatBRL(resumo.total)}</div>
-      ${Object.keys(resumo.porCategoria).length === 0
-        ? `<div class="empty"><div class="big">🦗</div>Nada categorizado como "próprio" ainda esse mês.</div>`
-        : Object.entries(resumo.porCategoria).sort((a, b) => b[1] - a[1]).map(([cat, val]) => `
-            <div class="gasto-resumo-cat"><span>${CATEGORIA_LABEL[cat] || cat}</span><span>${formatBRL(val)}</span></div>`).join('')
-      }
-    </div>` : `<div class="card">${nav}<div class="empty"><div class="big">⏳</div>Carregando...</div></div>`;
-
-  const lista = resumo && resumo.lancamentos && resumo.lancamentos.length > 0 ? `
-    <div class="card">
-      <h3>Lançamentos do mês</h3>
-      ${resumo.lancamentos.map(renderGastoLinha).join('')}
-    </div>` : '';
-
-  return `
-    ${resumoBox}
-    ${lista}
-    <div class="card">
-      <h3>Importar</h3>
-      <div class="field">
-        <label for="gastos-extrato-texto">Extrato da conta corrente (cole o texto do PDF)</label>
-        <textarea id="gastos-extrato-texto" rows="6" placeholder="Cole aqui o texto extraído do extrato...">${esc(state.gastosTextoExtrato)}</textarea>
-      </div>
-      <div class="field">
-        <label for="gastos-fatura-texto">Fatura do cartão (cole o texto do PDF)</label>
-        <textarea id="gastos-fatura-texto" rows="6" placeholder="Cole aqui o texto extraído da fatura...">${esc(state.gastosTextoFatura)}</textarea>
-      </div>
-      <button class="btn btn-primary" data-action="gastos-processar">Processar texto colado</button>
-    </div>
-    ${preview ? renderGastosPreview() : ''}
-  `;
-}
-
-function renderGastoLinha(l) {
-  const badge = l.status === 'de_primo'
-    ? `<span class="badge-parc" style="color:var(--acc-c);border-color:var(--acc-c)">👥 de primo</span>`
-    : l.status === 'ignorado'
-      ? `<span class="badge-parc" style="color:var(--muted);border-color:var(--muted)">🚫 ignorado</span>`
-      : '';
-  const categoriaSelect = l.status === 'proprio' ? `
-    <select data-action="gastos-categoria" data-id="${l.id}">
-      ${CATEGORIAS.map((c) => `<option value="${c}" ${(l.categoria || 'outros') === c ? 'selected' : ''}>${CATEGORIA_LABEL[c]}</option>`).join('')}
-    </select>` : '';
-  const statusBtn = l.status === 'proprio'
-    ? `<button class="del" data-action="gastos-ignorar" data-id="${l.id}">ignorar</button>`
-    : `<button class="del" data-action="gastos-restaurar" data-id="${l.id}">restaurar</button>`;
-  return `
-    <div class="gasto-row">
-      <div class="info">
-        <div class="desc">${esc(l.descricao)} ${badge}</div>
-        <div class="meta">${formatData(l.data)} · ${l.origem}</div>
-      </div>
-      ${categoriaSelect}
-      <div class="val">${formatBRL(l.valor)}</div>
-      ${statusBtn}
-      <button class="del" data-action="gastos-excluir" data-id="${l.id}">excluir</button>
-    </div>`;
-}
-
-function renderGastosPreview() {
-  const linhas = state.gastosPreview;
-  if (linhas.length === 0) {
-    return `<div class="card"><div class="empty"><div class="big">🤷</div>Nada reconhecido nesse texto. Confere se colou o trecho certo.</div></div>`;
-  }
-  const total = round2(linhas.reduce((s, l) => s + Number(l.valor || 0), 0));
-  return `
-    <div class="card">
-      <h3>Revisar antes de confirmar (${linhas.length} lançamento${linhas.length > 1 ? 's' : ''}, total ${formatBRL(total)})</h3>
-      ${linhas.map((l, i) => `
-        <div class="gasto-row">
-          <div class="info">
-            <input type="text" value="${esc(l.descricao)}" data-gastos-preview-field="descricao" data-idx="${i}" />
-            <div class="meta">${l.origem}</div>
-          </div>
-          <input type="date" value="${l.data}" data-gastos-preview-field="data" data-idx="${i}" />
-          <input type="number" step="0.01" value="${l.valor}" data-gastos-preview-field="valor" data-idx="${i}" />
-          <button class="del" data-action="gastos-preview-remover" data-idx="${i}">excluir</button>
-        </div>`).join('')}
-      <button class="btn btn-primary" data-action="gastos-confirmar" style="margin-top:14px">Confirmar e importar</button>
-    </div>`;
-}
-
 function renderPrimoView() {
   const { primo, compras, pagamentos } = state.data;
   const st = statusPrimo(saldoTotal(aprovados(compras), aprovados(pagamentos)));
@@ -1582,48 +1315,6 @@ async function handleAdminAction(action, target) {
     } else if (action === 'logout') {
       sessionStorage.removeItem('alypay_admin_pw');
       location.reload();
-    } else if (action === 'gastos-mes-prev') {
-      state.gastosMes = somaMes(state.gastosMes, -1);
-      state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-      render();
-    } else if (action === 'gastos-mes-next') {
-      state.gastosMes = somaMes(state.gastosMes, 1);
-      state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-      render();
-    } else if (action === 'gastos-processar') {
-      const linhas = [
-        ...parseExtratoC6(state.gastosTextoExtrato),
-        ...parseFaturaC6(state.gastosTextoFatura),
-      ].sort((a, b) => (a.data < b.data ? -1 : 1))
-       .map((l) => ({ ...l, categoria: sugerirCategoria(l.descricao, l.valor, l.pix, l.categoriaBanco) }));
-      state.gastosPreview = linhas;
-      render();
-    } else if (action === 'gastos-preview-remover') {
-      state.gastosPreview.splice(Number(target.dataset.idx), 1);
-      render();
-    } else if (action === 'gastos-confirmar') {
-      if (!state.gastosPreview || state.gastosPreview.length === 0) return;
-      await API.gastosImportar(pw, state.gastosPreview);
-      state.gastosPreview = null;
-      state.gastosTextoExtrato = '';
-      state.gastosTextoFatura = '';
-      state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-      if (state.gastosMes === mesAtual()) state.gastosAvisoMesAtual = state.gastosResumo;
-      showToast('Importado! Revisa a categoria e o que é de primo.');
-    } else if (action === 'gastos-ignorar') {
-      await API.gastosPatch(pw, target.dataset.id, { status: 'ignorado' });
-      state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-      showToast('Lançamento ignorado.');
-    } else if (action === 'gastos-restaurar') {
-      await API.gastosPatch(pw, target.dataset.id, { status: 'proprio' });
-      state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-      showToast('Lançamento restaurado.');
-    } else if (action === 'gastos-excluir') {
-      if (confirm('Excluir esse lançamento? Não dá pra desfazer.')) {
-        await API.gastosExcluir(pw, target.dataset.id);
-        state.gastosResumo = await API.gastosResumo(pw, state.gastosMes);
-        showToast('Lançamento excluído.');
-      }
     }
   } catch (err) {
     showToast(err.message || 'Deu ruim.');
@@ -1878,23 +1569,9 @@ function updateCompraPreview() {
 
 document.addEventListener('input', (e) => {
   if (['c-total', 'c-parcelas', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
-  if (e.target.id === 'gastos-extrato-texto') state.gastosTextoExtrato = e.target.value;
-  if (e.target.id === 'gastos-fatura-texto') state.gastosTextoFatura = e.target.value;
-  if (e.target.dataset.gastosPreviewField) {
-    const idx = Number(e.target.dataset.idx);
-    const field = e.target.dataset.gastosPreviewField;
-    state.gastosPreview[idx][field] = field === 'valor' ? Number(e.target.value) : e.target.value;
-  }
 });
 document.addEventListener('change', (e) => {
   if (['c-tipo', 'c-prazo-indefinido', 'c-prazo'].includes(e.target.id)) updateCompraPreview();
-  if (e.target.dataset.action === 'gastos-categoria') {
-    const id = e.target.dataset.id;
-    API.gastosPatch(state.adminPassword, id, { categoria: e.target.value })
-      .then(() => API.gastosResumo(state.adminPassword, state.gastosMes))
-      .then((r) => { state.gastosResumo = r; showToast('Categoria atualizada.'); })
-      .catch((err) => showToast(err.message || 'Deu ruim.'));
-  }
 });
 
 boot();
