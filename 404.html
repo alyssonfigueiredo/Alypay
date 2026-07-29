@@ -1038,6 +1038,20 @@ function parseFaturaC6ParaCompras(texto) {
   return itens;
 }
 
+// Mesma compra parcelada aparece de novo em faturas de meses seguintes
+// com outro "N/M" — mas como o mês de início é retrocedido a partir
+// disso, ela sempre bate no mesmo inicio_mes. Então: mesmo inicio_mes +
+// mesmo total (± 1 centavo de arredondamento) numa compra que esse primo
+// já tem = provável duplicata, o admin decide se remove.
+function marcarDuplicadas(itens, comprasExistentes) {
+  return itens.map((it) => {
+    const bate = comprasExistentes.some((c) =>
+      c.inicio_mes === it.inicio_mes && Math.abs(Number(c.total) - it.total) < 0.01
+    );
+    return { ...it, provavelDuplicada: bate };
+  });
+}
+
 function renderFormCompraImport() {
   const { primos } = state.data;
   const preview = state.compraImportPreview;
@@ -1069,10 +1083,10 @@ function renderCompraImportPreview() {
     <div class="card">
       <h3>Revisar antes de confirmar (${itens.length} ite${itens.length > 1 ? 'ns' : 'm'})</h3>
       ${itens.map((it, i) => `
-        <div class="import-row">
+        <div class="import-row" ${it.provavelDuplicada ? 'style="border-left:3px solid var(--danger);padding-left:8px"' : ''}>
           <div class="info">
             <input type="text" value="${esc(it.descricao)}" data-compra-import-field="descricao" data-idx="${i}" />
-            <div class="meta">${it.parcelas}x de ${formatBRL(round2(it.total / it.parcelas))} · desde ${formatMes(it.inicio_mes)}</div>
+            <div class="meta">${it.provavelDuplicada ? '⚠️ já lançada? · ' : ''}${it.parcelas}x de ${formatBRL(round2(it.total / it.parcelas))} · desde ${formatMes(it.inicio_mes)}</div>
           </div>
           <input type="number" step="0.01" value="${it.total}" data-compra-import-field="total" data-idx="${i}" />
           <input type="number" min="1" max="24" value="${it.parcelas}" data-compra-import-field="parcelas" data-idx="${i}" />
@@ -1422,7 +1436,9 @@ async function handleAdminAction(action, target) {
       sessionStorage.removeItem('alypay_admin_pw');
       location.reload();
     } else if (action === 'compra-import-processar') {
-      state.compraImportPreview = parseFaturaC6ParaCompras(state.compraImportTexto);
+      if (!state.compraImportPrimoId) { showToast('Selecione o primo antes de processar.'); return; }
+      const existentes = state.data.compras.filter((c) => c.primo_id === state.compraImportPrimoId && c.status !== 'rejeitado');
+      state.compraImportPreview = marcarDuplicadas(parseFaturaC6ParaCompras(state.compraImportTexto), existentes);
       render();
     } else if (action === 'compra-import-remover') {
       state.compraImportPreview.splice(Number(target.dataset.idx), 1);
@@ -1430,6 +1446,8 @@ async function handleAdminAction(action, target) {
     } else if (action === 'compra-import-confirmar') {
       if (!state.compraImportPrimoId) { showToast('Selecione o primo.'); return; }
       if (!state.compraImportPreview || state.compraImportPreview.length === 0) return;
+      const duplicadas = state.compraImportPreview.filter((it) => it.provavelDuplicada).length;
+      if (duplicadas > 0 && !confirm(`${duplicadas} ite${duplicadas > 1 ? 'ns parecem' : 'm parece'} já lançado(s) antes (mesmo mês e valor). Confirmar mesmo assim?`)) return;
       await API.importarCompras(pw, state.compraImportPrimoId, state.compraImportPreview);
       state.compraImportPreview = null;
       state.compraImportTexto = '';
